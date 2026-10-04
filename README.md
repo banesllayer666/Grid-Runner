@@ -5,7 +5,7 @@
 > **A motorsport trading & racing strategy game.**
 > Buy-low / sell-high arbitrage in the spirit of *Drug Wars*, mixed with the car-building and race management of *Motorsport Manager*.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code: MIT](https://img.shields.io/badge/Code-MIT-yellow.svg)](LICENSE)
 [![HTML5 / Vanilla JS](https://img.shields.io/badge/Stack-HTML5%20%7C%20CSS3%20%7C%20Vanilla%20JS-blue)](index.html)
 [![Zero Dependencies](https://img.shields.io/badge/Dependencies-Zero-brightgreen)](#)
 
@@ -205,10 +205,10 @@ For a clean result, pick flat vector art with straight edges and few colours. Th
 
 Not implemented yet:
 - Balance was tuned with a headless bot over 50 sessions × 50 weeks per difficulty; expect further tweaks once humans play it.
-- Real online multiplayer (needs a server); real equity mechanic for the Angel lender; audio
+- Online play needs a direct connection between players; strict networks would need a relay (TURN) server. Real equity mechanic for the Angel lender.
 
 ---
 
 ## 📜 License
 
-MIT License.
+The **source code** is MIT-licensed — see [`LICENSE`](LICENSE). The **art** in `assets/` is not: each pack is under its authors' own licence ([`assets/CREDITS.md`](assets/CREDITS.md)). The Grid Runner name and logos are all rights reserved.
