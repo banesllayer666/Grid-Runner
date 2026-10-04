@@ -132,8 +132,11 @@ v5 has its own autosave; a v4 game in progress carries over the first time you o
 
 #### Art credits
 - **Formula cars** (`cars/Formula/`): by Justinas0192, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Rotated and scaled in game.
-- **Rally & drag car sprites** (`cars/rally and drag/`): free for commercial use; the licence requires crediting the original author when the files are redistributed. *Author name to be added.*
-- **Other cars** (`cars/Other cars/`) and **track tiles** (`tracks/`): *source and licence to be added.* The track tiles match Kenney's Racing Pack (CC0, credit optional) — confirm before publishing.
+- **Rally & drag car sprites** (`cars/rally and drag/`): [Top-Down Pixel Cars 64x64](https://it2000-the-original.itch.io/pixelcars) by **it2000**. Free for commercial use; the author must be credited when the files are redistributed; not to be used for AI training (see `LICENSE.txt` in the folder).
+- **Other cars** (`cars/Other cars/`): [100+ Cars & Vehicles Pixel Art Pack](https://sevenevesai.itch.io/100-cars-vehicles-pixel-art-pack) by **Seveneves.ai** (marked AI-assisted). Free for commercial use, no attribution required; the assets must not be resold or redistributed on their own.
+- **Track tiles** (`tracks/`): [Racing Pack](https://kenney.nl/assets/racing-pack) by **Kenney** (www.kenney.nl), [CC0](https://creativecommons.org/publicdomain/zero/1.0/). The `Desert_*` files in `tracks/Sand*` come from another pack and are not used by the game.
+
+> **Before making this repository public:** the Seveneves.ai licence forbids redistributing its files on their own, and a public repo lets anyone download them directly. Keep the repo private, or leave `cars/Other cars/` out of the public copy and ship it only inside game builds (itch.io upload etc.).
 
 ### 8. Finance & grey market
 - Three lenders: **Sport Finance Corp** (0.15%/week), **Angel Investor Syndicate** (0.30%/week; in v3 it also takes 5% of race prizes while you owe it) and **The Consortium** (1.8%/week; two missed payments and they seize about 35% of your warehouse).
