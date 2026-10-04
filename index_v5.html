@@ -1363,8 +1363,10 @@ function loadP(i){PERS.forEach(k=>G[k]=G.players[i][k]);G.cur=i;}
 function newPlayer(name,team,perk){
   const d=DF();
   if(!perkOpen(perk))perk='';
-  return{cash:d.cash+d.debt+(perk==='banker'?5000:0)+(perk==='heir'?12000:0),rep:50+(perk==='celebrity'?15:0),city:'portimao',wh:[],
-    inst:[{uid:uid(),pid:'suspension_road',cond:45,bp:7500,bc:'portimao',bw:0},{uid:uid(),pid:'turbo',cond:55,bp:13500,bc:'portimao',bw:0}],
+  // Every manager starts in a random hub, so each game opens with different prices, races and routes.
+  const ids=Object.keys(CITIES),home=ids[Math.floor(Math.random()*ids.length)];
+  return{cash:d.cash+d.debt+(perk==='banker'?5000:0)+(perk==='heir'?12000:0),rep:50+(perk==='celebrity'?15:0),city:home,wh:[],
+    inst:[{uid:uid(),pid:'suspension_road',cond:45,bp:7500,bc:home,bw:0},{uid:uid(),pid:'turbo',cond:55,bp:13500,bc:home,bw:0}],
     loans:{bank:d.debt,angel:0,consortium:0},consMiss:0,wkBase:350,greyOk:false,raceHist:[],champ:{pts:0,wins:0},log:[],ap:5,raced:0,titles:0,won:false,driver:perk==='veteran'?'club':'rookie',dnfWk:false,staff:{mech:0,eng:0},perk:perk||'',name,team,banned:0,dead:false,lrep:{},truck:0,hq:{},dxp:0,
     tier:0,seen:{},dcon:perk==='veteran'?1+CFG.drvTerm:0,sharkDue:0,sharkLate:0,score:0,prev:'',ins:0,dev:0,devB:0,goal:null};
 }
@@ -1376,7 +1378,7 @@ function beginGame(c){
   G.league=c.players.length>1;G.players=c.players.map(p=>newPlayer(p.name,p.team,p.perk));G.cur=0;loadP(0);
   initPrices();rollStock();G.players.forEach(p=>{if(p.perk==='insider')Object.keys(CITIES).forEach(cid=>see(cid,'',p.seen));else see(p.city,'',p.seen);});
   rollWeather();genContracts();G.tab='market';
-  addLog('Welcome, '+G.name+'! '+G.team+' HQ opened in Portimão 🇵🇹'+(G.league?' — league of '+G.players.length+' managers':''),'');
+  addLog('Welcome, '+G.name+'! '+G.team+' HQ opened in '+CITIES[G.city].n+' '+CITIES[G.city].f+(G.league?' — league of '+G.players.length+' managers, each starting in a random hub':''),'');
   render();
 }
 function setupPlayers(){
@@ -2362,7 +2364,7 @@ start:()=>{const d=DF();return gH('What is Grid Runner?')
   'You go <strong>bankrupt</strong> if your net worth (cash + warehouse value − debts) falls below −$50,000. The game is meant to be hard: on Normal, more than half of reckless teams go under.'])
  +gH('Your first weeks, step by step')
  +'<ol class="gl">'
- +'<li><strong>Read the Market.</strong> You start in Portimão with about '+fmt(d.cash+d.debt)+(d.debt?' (including an '+fmt(d.debt)+' bank loan on Hard)':'')+'. Your car has a worn Road Suspension Kit and Turbo Assembly. Parts are listed by category, cheapest first.</li>'
+ +'<li><strong>Read the Market.</strong> You start in a random hub — this game, '+CITIES[G.city].f+' '+CITIES[G.city].n+' — with about '+fmt(d.cash+d.debt)+(d.debt?' (including an '+fmt(d.debt)+' bank loan on Hard)':'')+'. Your car has a worn Road Suspension Kit and Turbo Assembly. Parts are listed by category, cheapest first.</li>'
  +'<li><strong>Find a trade.</strong> The Travel tab shows what each hub sells cheap. A good trade buys at least 15–20% below what another hub pays, after the fare. "Global Parts Intelligence" under the market shows each hub\'s biggest glut.</li>'
  +'<li><strong>Buy, travel, sell.</strong> Each costs 1 Action Point (AP), and travel also costs the fare. You get 5 AP a week. Each hub only stocks some parts this week, in limited numbers (the "In stock" column).</li>'
  +'<li><strong>Build the car.</strong> In the Warehouse tab press <em>Install</em> (free, no AP). Each slot holds one part, so fit the best one for the races you plan to enter.</li>'
