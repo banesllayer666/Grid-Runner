@@ -581,31 +581,31 @@ body.spect #content button:not(.fb):not(.gtab),body.spect #etb{pointer-events:no
 .track.wet:not(.t-rally):not(.t-drag) .car.run::after{content:'';position:absolute;right:100%;top:2px;width:40px;height:20px;background:radial-gradient(ellipse at right,rgba(200,215,235,.55),transparent 70%);filter:blur(2px)}
 .track.wet{filter:saturate(.8) brightness(.92)}
 .ranks.duel{grid-template-columns:1fr 1fr}
-/* race scenery from tracks/: verges around a road strip; plain colours underneath in case the tiles are missing */
-.track{padding:16px 0;border:0!important;background:url("tracks/Grass/land_grass04.png") 0 0/32px 32px,#3d7a3a!important}
+/* race scenery from assets/tracks/ (see tools/build-assets.js): verges around a road strip; plain colours underneath in case the tiles are missing */
+.track{padding:16px 0;border:0!important;background:url("assets/tracks/grass.png") 0 0/32px 32px,#3d7a3a!important}
 .track::before{display:none}
 .track .kerb{display:none}
-.track.t-desert,.track.t-drag{background:url("tracks/Sand/land_sand05.png") 0 0/32px 32px,#d9bf8c!important}
+.track.t-desert,.track.t-drag{background:url("assets/tracks/sand.png") 0 0/32px 32px,#d9bf8c!important}
 .track.t-snow{background:#eef3f8!important}
-.road{position:relative;image-rendering:pixelated;background:url("tracks/Asphalt%20road/road_asphalt22.png") 0 0/64px 64px,linear-gradient(#5d6468,#50575b)}
-.rkerb{height:11px;position:relative;z-index:1;background:url("tracks/Asphalt%20road/road_asphalt02.png") 0 0/64px 64px repeat-x,repeating-linear-gradient(90deg,#e8590c 0 16px,#f2f4f6 16px 32px)}
+.road{position:relative;image-rendering:pixelated;background:url("assets/tracks/asphalt.png") 0 0/64px 64px,linear-gradient(#5d6468,#50575b)}
+.rkerb{height:11px;position:relative;z-index:1;background:url("assets/tracks/asphalt-kerb.png") 0 0/64px 64px repeat-x,repeating-linear-gradient(90deg,#e8590c 0 16px,#f2f4f6 16px 32px)}
 .rkerb.b{background-position:0 100%,0 0}
-.t-rally .rkerb{background:url("tracks/Dirt%20road/road_dirt01.png") 0 0/64px 64px repeat-x,repeating-linear-gradient(90deg,#2f8fd8 0 16px,#f2f4f6 16px 32px)}
+.t-rally .rkerb{background:url("assets/tracks/dirt-kerb.png") 0 0/64px 64px repeat-x,repeating-linear-gradient(90deg,#2f8fd8 0 16px,#f2f4f6 16px 32px)}
 .t-rally .rkerb.b{background-position:0 100%,0 0}
 .road::before{content:'';position:absolute;top:0;bottom:0;right:44px;width:12px;z-index:1;background:repeating-conic-gradient(#f2f4f6 0 25%,#0d0e10 0 50%) 0 0/6px 6px;opacity:.95}
-.t-rally .road{background:url("tracks/Dirt%20road/road_dirt21.png") 0 0/64px 64px,linear-gradient(#a8743f,#96663a)}
+.t-rally .road{background:url("assets/tracks/dirt.png") 0 0/64px 64px,linear-gradient(#a8743f,#96663a)}
 .t-snow .road::after{content:'';position:absolute;inset:0;z-index:1;background:rgba(240,245,252,.72);pointer-events:none}
 .t-endurance .road::after{content:'';position:absolute;inset:0;z-index:1;background:rgba(6,9,22,.62);pointer-events:none}
 .t-endurance{filter:none}
-.track.t-endurance{background:url("tracks/Grass/land_grass04.png") 0 0/32px 32px,#1c3320!important;box-shadow:inset 0 0 0 999px rgba(6,9,22,.55)}
+.track.t-endurance{background:url("assets/tracks/grass.png") 0 0/32px 32px,#1c3320!important;box-shadow:inset 0 0 0 999px rgba(6,9,22,.55)}
 .track.t-endurance.dusk{box-shadow:inset 0 0 0 999px rgba(70,30,40,.38)}.track.t-endurance.dusk .road::after{background:rgba(60,25,45,.35)}
-.track.v2:not(.t-desert):not(.t-drag):not(.t-snow){background-image:url("tracks/Grass/land_grass11.png")!important}
+.track.v2:not(.t-desert):not(.t-drag):not(.t-snow){background-image:url("assets/tracks/grass-tufts.png")!important}
 .track.v3:not(.t-desert):not(.t-drag):not(.t-snow){background-size:48px 48px!important}
 .lane{height:34px;border-bottom:0!important;position:relative;z-index:2}
 .t-drag .lane{height:46px}
 .car{top:5px;height:24px}
 .t-drag .car{top:11px}
-.car .cimg{position:absolute;left:50%;top:50%;width:auto;transform:translate(-50%,-50%) rotate(var(--rot,90deg));image-rendering:pixelated;filter:drop-shadow(-2px 2px 1px rgba(0,0,0,.55));pointer-events:none}
+.car .cimg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background-image:url("assets/cars.png");background-repeat:no-repeat;image-rendering:pixelated;filter:drop-shadow(-2px 2px 1px rgba(0,0,0,.55));pointer-events:none}
 .car.me .cimg{filter:drop-shadow(0 0 2px #ff5c1a) drop-shadow(0 0 2px #ff5c1a) drop-shadow(-2px 2px 1px rgba(0,0,0,.5))}
 .car .tag{top:-12px;z-index:3}
 .track.t-rally .car .tag,.track.t-snow .car .tag{color:#fff;text-shadow:0 1px 3px #000}
@@ -2595,31 +2595,33 @@ function raceStage(disc,k){if(k>=1)return disc==='drag'?'🏁 Finish line':disc=
   if(disc==='rally')return 'Split '+Math.min(3,1+Math.floor(k*3))+' / 3';
   if(disc==='endurance')return 'Hour '+Math.max(1,Math.ceil(k*24))+' / 24';
   return 'Lap '+Math.min(3,1+Math.floor(k*3))+' / 3';}
-// Car models from cars/ (top-down), grouped so a race only ever shows cars of its own category.
-// Every race draws a fresh line-up — your car included — so no two races look the same; if an image is missing,
-// the drawn SVG car (carSvg) stands in.
-const CAR_O=n=>'cars/Other cars/car_'+String(n).padStart(3,'0')+'.png',CAR_S=s=>'cars/rally and drag/sprite/'+s+'.png',CAR_F=c=>'cars/Formula/'+c+'_car.png';
+// Race cars come from one sprite sheet, assets/cars.png, built by tools/build-assets.js from the original packs: only the
+// cars used here, already turned to face right and trimmed. CAR_SHEET.a[key] = [x, y, w, h] on the sheet.
+/*ATLAS*/const CAR_SHEET={w:512,h:572,a:{"o16":[0,0,82,50],"o2":[83,0,85,48],"o81":[169,0,94,47],"o1":[264,0,74,46],"o5":[339,0,86,46],"o10":[426,0,84,46],"o14":[0,51,80,46],"o15":[81,51,75,46],"o86":[157,51,83,46],"o12":[241,51,79,45],"o85":[321,51,76,45],"o108":[398,51,85,45],"o114":[0,98,77,45],"o7":[78,98,85,44],"o8":[164,98,84,44],"o9":[249,98,81,44],"o91":[331,98,78,44],"o102":[410,98,96,44],"o109":[0,144,86,44],"o110":[87,144,81,44],"o111":[169,144,82,44],"o28":[252,144,70,43],"o31":[323,144,85,43],"o36":[409,144,83,43],"o37":[0,189,82,43],"o49":[83,189,86,43],"o52":[170,189,81,43],"o57":[252,189,76,43],"o88":[329,189,81,43],"o89":[411,189,75,43],"o90":[0,233,87,43],"o96":[88,233,79,43],"o105":[168,233,77,43],"o106":[246,233,82,43],"o18":[329,233,73,42],"o30":[403,233,61,42],"o53":[0,277,57,42],"o75":[58,277,83,42],"o83":[142,277,81,42],"o94":[224,277,82,42],"o118":[307,277,81,42],"o58":[389,277,81,41],"o78":[0,320,81,41],"o80":[82,320,78,41],"o84":[161,320,74,41],"o87":[236,320,83,41],"o92":[320,320,82,41],"o98":[403,320,82,41],"o107":[0,362,84,41],"o112":[85,362,82,41],"o95":[168,362,78,40],"o100":[247,362,78,40],"o113":[326,362,80,40],"o115":[407,362,79,40],"o117":[0,404,77,40],"o17":[78,404,83,39],"o48":[162,404,84,39],"o93":[247,404,83,39],"o97":[331,404,77,39],"o104":[409,404,75,39],"fblack":[0,445,60,34],"fblue":[61,445,60,34],"fgray":[122,445,60,34],"fgreen":[183,445,60,34],"flime":[244,445,60,34],"fnavyblue":[305,445,60,34],"forange":[366,445,60,34],"fpink":[427,445,60,34],"fred":[0,480,60,34],"fwhite":[61,480,60,34],"o46":[122,480,45,34],"s500x":[168,480,58,30],"sCorolla":[227,480,58,30],"sDB9":[286,480,58,30],"sF1":[345,480,57,30],"sJimny":[403,480,56,30],"s370z":[0,515,56,28],"sA4":[57,515,58,28],"sBeetle":[116,515,57,28],"sFType":[174,515,58,28],"sGiulia":[233,515,58,28],"sGiulietta":[292,515,57,28],"sLogan":[350,515,58,28],"sPolo":[409,515,57,28],"sSandero":[0,544,57,28],"sTipo":[58,544,58,28],"sViper":[117,544,58,28]}};/*/ATLAS*/
+// Grouped so a race only ever shows cars of its own category. Every race draws a fresh line-up, your car included.
 const CAR_POOLS={
-  formula:['black','blue','gray','green','lime','navyblue','orange','pink','red','white'].map(CAR_F),
-  gt:[7,16,37,53,84,85,86,87,88,93,95,96,104,105,106,112,113,114,115].map(CAR_O).concat(['370z','DB9','F1','FType','Viper'].map(CAR_S)),
-  endurance:[16,37,53,86,87,88,95,113,114].map(CAR_O).concat(['DB9','F1','FType','Viper','370z'].map(CAR_S)),
-  touring:[1,5,9,10,14,15,17,18,28,36,49,57,75,90,92,94,100,108].map(CAR_O).concat(['500x','A4','Corolla','Giulia','Giulietta','Logan','Tipo','Polo','Sandero'].map(CAR_S)),
-  rally:[2,12,28,30,31,46,52,80,81,83,91,97,111,117].map(CAR_O).concat(['Beetle','Jimny','Polo','Sandero'].map(CAR_S)),
-  drag:[8,48,58,78,89,98,102,106,107,109,110,118].map(CAR_O).concat([CAR_S('Viper')])};
-// Sprites drawn nose-down (checked one by one by their headlights and tail lights); they are turned the other way.
-const CAR_FLIP=new Set(['black','blue','gray','green','lime','navyblue','orange','pink','red','white'].map(CAR_F)
-  .concat([8,28,31,37,46,48,49,52,53,80,81,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,100,102,104,105,106,107,108,109,110,111,112,113,114,115,117,118].map(CAR_O)));
-// Square 64×64 sprites have padding around the car, so they are drawn larger than the tight "Other cars" images.
-function carLen(src){return /Other cars/.test(src)?46:/Formula/.test(src)?56:52;}
-function carRot(src){return CAR_FLIP.has(src)?-90:90;}
+  formula:['black','blue','gray','green','lime','navyblue','orange','pink','red','white'].map(c=>'f'+c),
+  gt:[7,16,37,53,84,85,86,87,88,93,95,96,104,105,106,112,113,114,115].map(n=>'o'+n).concat(['370z','DB9','F1','FType','Viper'].map(s=>'s'+s)),
+  endurance:[16,37,53,86,87,88,95,113,114].map(n=>'o'+n).concat(['DB9','F1','FType','Viper','370z'].map(s=>'s'+s)),
+  touring:[1,5,9,10,14,15,17,18,28,36,49,57,75,90,92,94,100,108].map(n=>'o'+n).concat(['500x','A4','Corolla','Giulia','Giulietta','Logan','Tipo','Polo','Sandero'].map(s=>'s'+s)),
+  rally:[2,12,28,30,31,46,52,80,81,83,91,97,111,117].map(n=>'o'+n).concat(['Beetle','Jimny','Polo','Sandero'].map(s=>'s'+s)),
+  drag:[8,48,58,78,89,98,102,106,107,109,110,118].map(n=>'o'+n).concat(['sViper'])};
+// Length on track in px (F1 cars are long and narrow).
+function carLen(k){return k[0]==='f'?50:44;}
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
-// n distinct models (repeats only if the pool is smaller than the field).
-function carPick(disc,n){const p=shuffle(CAR_POOLS[disc]||CAR_POOLS.formula);return Array.from({length:n},(_,i)=>p[i%p.length]);}
+// n distinct models (repeats only if the pool is smaller than the field); models missing from the sheet are skipped.
+function carPick(disc,n){const p=shuffle((CAR_POOLS[disc]||CAR_POOLS.formula).filter(k=>CAR_SHEET.a[k]));return p.length?Array.from({length:n},(_,i)=>p[i%p.length]):Array(n).fill('');}
 // Rival teams for the field: the league's AI teams plus guest teams, shuffled every race.
 const GUEST_TEAMS=['Zenith','Falcon','Torque Bros','Redline','Nova Works','Atlas Motorsport','Crimson Arrow','Bolt Racing','Sakura Speed','Nordic GP','Vantage','Steel City','Solar Racing','Hawk Engineering','Comet','Monarch'];
 function rivalNames(n){const ai=G.ai&&G.ai.length?G.ai.map(a=>a.n):['Apex Racing','Vortex GP','Silverline','Kestrel Motors','Ironclad'];
   return shuffle(shuffle(ai).concat(shuffle(GUEST_TEAMS).slice(0,Math.max(0,n-ai.length)+2))).slice(0,n);}
-function carFallback(img,disc,col,me){const c=img.parentNode;if(!c)return;const [svg,cw]=carSvg(disc,col,me==='1');img.remove();c.style.width=cw+'px';c.insertAdjacentHTML('beforeend',svg);}
+// One car as a slice of the sheet, scaled to its length; falls back to the drawn SVG car if the sheet or model is missing.
+let CAR_SHEET_OK=null;
+if(typeof Image!=='undefined'){const t=new Image();t.onload=()=>{CAR_SHEET_OK=true;};t.onerror=()=>{CAR_SHEET_OK=false;};t.src='assets/cars.png';}
+function carHtml(k,disc,col,me){const a=CAR_SHEET.a[k];
+  if(!a||CAR_SHEET_OK===false){const [svg,cw]=carSvg(disc,col,me);return{w:cw,h:24,html:svg};}
+  const L=carLen(k),s=L/a[2],H=Math.round(a[3]*s);
+  return{w:L,h:H,html:`<span class="cimg" style="width:${L}px;height:${H}px;background-size:${CAR_SHEET.w*s}px ${CAR_SHEET.h*s}px;background-position:${-a[0]*s}px ${-a[1]*s}px"></span>`};}
 // The race sequence, drawn for the discipline. Cars only ever move forward: each follows its own increasing speed curve
 // (so overtakes happen), crosses the line in the real finishing order, then rolls on and stops past it.
 function fxRace(race,result,done){
@@ -2630,12 +2632,12 @@ function fxRace(race,result,done){
   const order=[];let r=0;for(let p=1;p<=N;p++){if(p===mePos)order.push('me');else if(r<ai.length)order.push(r++);}if(mePos==null)order.push('me');
   const models=carPick(disc,N);
   const cars=order.map((who,fin)=>{const me=who==='me',src=me?models[N-1]:models[who];
-    const a=Math.random(),b=Math.random()*(1-a);return{who,fin,me,src,len:carLen(src),name:me?G.team:ai[who],col:me?'#ff5c1a':cols[who%cols.length],seed:Math.random(),w:[a,b,1-a-b]};});
+    const a=Math.random(),b=Math.random()*(1-a);const col=me?'#ff5c1a':cols[who%cols.length],ch=carHtml(src,disc,col,me);return{who,fin,me,src,ch,len:ch.w,name:me?G.team:ai[who],col,seed:Math.random(),w:[a,b,1-a-b]};});
   const lanes=cars.slice().sort((a,b)=>a.seed-b.seed);
   const nl=drag?3:5,lights=Array.from({length:nl},()=>'<i></i>').join('');
   openModal(discE(disc).split(' ')[0]+' '+race.n,`<div class="race"><div class="lights${drag?' tree':''}" id="rl">${lights}</div>
     <div class="track t-${disc}${snow?' t-snow':''}${desert?' t-desert':''}${wet?' wet':''}${disc==='endurance'&&Math.random()<.4?' dusk':''} v${1+Math.floor(Math.random()*3)}"><div class="road"><div class="rkerb"></div>${lanes.map((c,i)=>
-      `<div class="lane"><div class="car${c.me?' me':''}" id="car${i}" style="width:${c.len}px"><span class="tag">${c.name}</span><img class="cimg" src="${encodeURI(c.src)}" alt="" style="height:${c.len}px;--rot:${carRot(c.src)}deg" onerror="carFallback(this,'${disc}','${c.col}','${c.me?1:0}')"></div></div>`).join('')}<div class="rkerb b"></div></div></div>
+      `<div class="lane"><div class="car${c.me?' me':''}" id="car${i}" style="width:${c.len}px"><span class="tag">${c.name}</span>${c.ch.html}</div></div>`).join('')}<div class="rkerb b"></div></div></div>
     <div class="rbar"><span>${discE(disc)} · ${snow?'❄ snow':wet?'🌧 wet':'☀ dry'}</span><span id="rlap">${drag?'Staged':disc==='rally'?'Stage start':disc==='endurance'?'Le Mans start':'Formation lap'}</span></div><div class="ranks${drag?' duel':''}" id="rk"></div></div>`,[]);
   const mac=document.getElementById('mac');mac.innerHTML='';const sk=document.createElement('button');sk.className='bcan';sk.textContent='Skip ⏭';sk.onclick=()=>{FX.rskip=true;};mac.appendChild(sk);
   FX.rskip=false;const rid=FX.raceId=(FX.raceId||0)+1;const L=document.querySelectorAll('#rl i');let li=0;

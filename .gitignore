@@ -5,3 +5,7 @@ Thumbs.db
 .vscode/
 .idea/
 node_modules/
+
+# Original art packs: kept locally, the game uses the built assets/ (tools/build-assets.js)
+/cars/
+/tracks/
