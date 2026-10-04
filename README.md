@@ -155,6 +155,22 @@ The original packs are not in this repository. To rebuild the art after adding a
 
 ---
 
+## 📱 Android app and cross-play
+
+Grid Runner v5 is an installable app (a Progressive Web App): on Android it installs with its own icon, runs full screen and plays offline. Online games work across devices: phones, tablets and PCs play in the same league with the same invite codes.
+
+**1. Put the game online (free, HTTPS).** Any static host works:
+- **Netlify** (best for the APK): sign in at netlify.com, choose *Add new site → Deploy manually* and drop the game folder (`index_v5.html`, `assets/`, `icons/`, `manifest.webmanifest`, `sw.js`, the logo files). You get an address like `https://grid-runner.netlify.app`.
+- **GitHub Pages**: in the repository, *Settings → Pages → Deploy from a branch → main / root*. The game is then at `https://<user>.github.io/Grid-Runner/index_v5.html` (free for public repositories).
+
+**2. Install on Android (no APK needed).** Open the game address in Chrome and tap **📲 Install app** on the title screen (or Chrome menu → *Install app*). It appears in the app drawer, opens full screen and works offline.
+
+**3. Make an APK or Play Store bundle.** Go to [pwabuilder.com](https://www.pwabuilder.com), enter the game address (ending in `index_v5.html`), choose *Package for stores → Android* and download the package. It contains a signed **APK** you can install directly on phones (allow *Install unknown apps*) and an **AAB** for Google Play (a developer account costs a one-time $25). Keep the signing key it gives you: updates must use the same key. To hide the browser address bar inside the APK, upload the package's `assetlinks.json` to `/.well-known/assetlinks.json` at the root of your site. That is easy on Netlify; a GitHub Pages project site can't serve that root path.
+
+**Cross-play.** The host picks *Host online game* and sends each friend an invite code (📤 *Share* on a phone opens WhatsApp, Discord and so on). The friend pastes it into *Join online game* (📋 *Paste*) and shares back the reply code. Phones and PCs mix freely. Everyone must run the same version: the game checks when a player joins and asks out-of-date players to reload or update. The installed app updates itself the next time it opens while online.
+
+---
+
 ## 🌍 World Hubs
 
 Discounts are the two cheapest categories at that hub, "Expensive" is its most expensive one. Travel costs 1 AP plus the fare.

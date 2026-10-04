@@ -2,9 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <title>Grid Runner — Pit Lane Trading</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0d0e10">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -635,6 +641,17 @@ body.spect #content button:not(.fb):not(.gtab),body.spect #etb{pointer-events:no
 table.stand{width:100%;border-collapse:collapse;font-size:12px}table.stand th{text-align:left;color:var(--dim);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--border-h)}
 table.stand td{padding:5px 6px;border-bottom:1px solid var(--border);vertical-align:middle}table.stand tr.me td{background:rgba(255,92,26,.08)}table.stand tr.me td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
 .lgset{border:1px solid var(--border);padding:8px 10px;margin:8px 0;background:var(--surface)}.lgc{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 10px}.lgc p{grid-column:1/-1}
+/* installed app and touch screens */
+button,.nb,.fb,.avb{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#hdr{padding-top:env(safe-area-inset-top,0px)}
+#sidebar{padding-bottom:max(6px,env(safe-area-inset-bottom,0px))}
+@media(max-width:900px){
+ #tab-market .mtbl{display:block;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch}
+ #netbar{bottom:calc(70px + env(safe-area-inset-bottom,0px));max-width:94vw;flex-wrap:wrap;justify-content:center}
+ .ranks{grid-template-columns:repeat(2,1fr)}
+ .gtabs{flex-wrap:nowrap;overflow-x:auto}
+ .code{font-size:12px}
+}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style>
 </head>
@@ -2499,7 +2516,8 @@ function renderTitle(){
     +`<button onclick="showSaves()">Load a save<small>Three slots, or import a file</small></button>`
     +`<button onclick="showHostSetup()">Host online game<small>Same season options as single player · friends join with a code</small></button>`
     +`<button onclick="showJoin()">Join online game<small>Paste the invite your host sent you</small></button>`
-    +`<button onclick="showHowTo()">How to play</button>`;
+    +`<button onclick="showHowTo()">How to play</button>`
+    +(INSTALL?`<button onclick="installApp()">📲 Install app<small>Play full screen and offline, with its own icon</small></button>`:'');
   document.getElementById('ts-meta').textContent='🏅 '+ACH.filter(a=>m.ach[a.id]).length+'/'+ACH.length+' achievements · Best sprint '+(m.best.length?m.best[0].s.toLocaleString():'—')+' · v5';
 }
 function titleContinue(){hideTitle();
@@ -2844,6 +2862,7 @@ function fxResult(result){if(!FX.on)return;
 // The host is the hub: every device talks only to the host, which relays. Turns run in order like the hot-seat league:
 // only the device whose seat is up can act; it sends the whole game after each change and everyone else watches live.
 // G.net marks an online game and G.netSeats[i] is the device id that owns G.players[i] (world state, not in PERS).
+const NET_VER=1;   // online protocol version: devices on different versions are told to update instead of joining
 const NET={on:false,host:false,id:'',peers:[],inv:null,lobby:[],cfg:null,applying:false,sendT:0,chunks:{},joinCode:'',status:''};
 const NET_ICE={iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun.cloudflare.com:3478'}]};
 const NET_CHUNK=48000;
@@ -2874,7 +2893,7 @@ async function netAnswer(code){const o=await netUnpack(code);if(o.t!=='o')throw 
   await pc.setRemoteDescription({type:'offer',sdp:o.sdp});await pc.setLocalDescription(await pc.createAnswer());await netIce(pc);
   return netPack({t:'a',v:1,sdp:pc.localDescription.sdp});}
 function netWire(peer){const ch=peer.ch;if(!ch)return;
-  ch.onopen=()=>{peer.open=true;if(!NET.host)netTx(peer,{t:'hello',id:NET.id,...NET.me0});netUI();};
+  ch.onopen=()=>{peer.open=true;if(!NET.host)netTx(peer,{t:'hello',v:NET_VER,id:NET.id,...NET.me0});netUI();};
   ch.onclose=()=>{peer.open=false;toast('📡 '+(peer.name||'A player')+' disconnected','w',5000);netUI();if(NET.host)netLobbyCast();};
   ch.onmessage=e=>netRx(peer,e.data);}
 // Messages above NET_CHUNK are split; the receiver stitches them back together.
@@ -2886,6 +2905,7 @@ function netRx(peer,raw){let m;try{m=JSON.parse(raw);}catch(e){return;}
   if(m.t==='part'){const c=NET.chunks[m.k]=NET.chunks[m.k]||[];c[m.i]=m.d;if(c.filter(x=>x!=null).length===m.n){delete NET.chunks[m.k];netRx(peer,c.join(''));}return;}
   if(m.t==='chat'){toast('💬 '+m.from+': '+m.msg,'i',6000);fxSnd('click');if(NET.host)netCast(m,peer);return;}
   if(NET.host){
+    if(m.t==='hello'&&m.v!==NET_VER){netTx(peer,{t:'ver',v:NET_VER});toast('📡 '+(m.name||'A player')+' has a different version of Grid Runner and could not join','w',7000);return;}
     if(m.t==='hello'){peer.id=m.id;peer.name=m.name||'Guest';peer.team=m.team;peer.perk=m.perk;peer.av=m.avatar|0;
       if(G.net&&G.netSeats){let seat=G.netSeats.indexOf(m.id);
         // a returning player who lost their device id can reclaim a disconnected seat with the same manager name
@@ -2896,6 +2916,7 @@ function netRx(peer,raw){let m;try{m=JSON.parse(raw);}catch(e){return;}
     if(m.t==='state'&&G.net&&peer.id===G.netSeats[G.cur]){netApply(m.s);netCast({t:'state',s:G},peer);}
     return;}
   if(m.t==='lobby'){NET.lobby=m.list;NET.cfgTxt=m.cfg;netJoinUI();return;}
+  if(m.t==='ver'){toast('The host has a different version of Grid Runner. Both players need the latest version: reload the page or update the app.','d',9000);return;}
   if(m.t==='full'){toast('That game has no free seat for you','d',6000);return;}
   if(m.t==='state')netApply(m.s);}
 // Apply a received game: keep this device's own view settings, re-render, then show whose turn it is.
@@ -2940,8 +2961,8 @@ function showLobby(){const started=!!(G.net&&NET.on);
     <ul class="lobby" id="lobbyl">${rows}</ul>
     <div class="gh" style="margin-top:12px">Invite a player</div>
     <p class="gdim">1. Create an invite and send it to one friend (Discord, WhatsApp…). 2. They paste it in <em>Join online game</em> and send you their reply. 3. Paste the reply here. One invite per friend.${started?' A player who dropped out rejoins the same way.':''}</p>
-    ${inv?`<label>Invite code — send this</label><textarea class="code" readonly onclick="this.select()">${inv.code}</textarea><button class="bsm" onclick="netCopy('${inv.code}')">📋 Copy invite</button>
-      <label style="margin-top:8px;display:block">Their reply code</label><textarea class="code" id="netrep" placeholder="Paste the reply here"></textarea><button class="bsm bins" onclick="netGotReply()">🔗 Connect</button>`
+    ${inv?`<label>Invite code — send this</label><textarea class="code" readonly onclick="this.select()">${inv.code}</textarea><button class="bsm" onclick="netCopy('${inv.code}')">📋 Copy invite</button>${navigator.share?`<button class="bsm" onclick="netShare('${inv.code}','invite')">📤 Share</button>`:''}
+      <label style="margin-top:8px;display:block">Their reply code</label><textarea class="code" id="netrep" placeholder="Paste the reply here"></textarea><button class="bsm" onclick="netPaste('netrep')">📋 Paste</button><button class="bsm bins" onclick="netGotReply()">🔗 Connect</button>`
       :`<button class="bsm bins" id="netinvb" onclick="netNewInvite()">➕ Create invite</button>`}
     <div class="gdim" style="margin-top:8px">Works on most home networks. Some strict office or mobile networks block direct connections — try another network if a player can't connect.</div></div>`,
     started?[]:[{l:'▶ Start game',c:'bcon',fn:netStart}]);
@@ -2949,6 +2970,8 @@ function showLobby(){const started=!!(G.net&&NET.on);
 async function netNewInvite(){const b=document.getElementById('netinvb');if(b){b.disabled=true;b.textContent='Creating…';}
   try{NET.inv=await netInvite();}catch(e){toast('Could not create an invite: '+e.message,'d');}showLobby();}
 async function netGotReply(){const v=document.getElementById('netrep').value;try{await netAccept(NET.inv.peer,v);NET.inv=null;toast('Connecting…','i');showLobby();}catch(e){toast(e.message,'d');}}
+function netShare(t,kind){navigator.share({title:'Grid Runner '+kind+' code',text:t}).catch(()=>{});}
+function netPaste(id){const el=document.getElementById(id);if(!navigator.clipboard||!navigator.clipboard.readText){toast('Long-press the box and choose Paste','i');return;}navigator.clipboard.readText().then(t=>{el.value=t.trim();}).catch(()=>toast('Long-press the box and choose Paste','i'));}
 function netCopy(t){try{navigator.clipboard.writeText(t);toast('Copied','s');}catch(e){toast('Select the code and copy it','w');}}
 function netStart(){const guests=NET.peers.filter(p=>p.id&&p.open);if(!guests.length){toast('Invite at least one player first','w');setTimeout(showLobby,0);return;}
   const c=NET.cfg;gameReady=true;hideTitle();
@@ -2961,9 +2984,9 @@ function showJoin(){if(!netOk()){toast('This browser does not support online pla
   openModal('🌐 Join online game',`<div style="max-height:66vh;overflow:auto">
     ${G.net&&gameReady?'':`<label>Manager name</label><input class="mi" id="jn" maxlength="16" value="${me.name}"><label>Team name</label><input class="mi" id="jt" maxlength="20" value="${me.team}">
     <label>Perk</label><select class="mi" id="jp">${Object.entries(PERKS).map(([k,v])=>perkOpen(k)?`<option value="${k}"${k===me.perk?' selected':''}>${v.n} — ${v.d}</option>`:'').join('')}</select><label>Avatar</label>${avatarPicker('jav',me.avatar|0)}`}
-    <label>Invite code from the host</label><textarea class="code" id="jinv" placeholder="Paste the invite here"></textarea>
+    <label>Invite code from the host</label><textarea class="code" id="jinv" placeholder="Paste the invite here"></textarea><button class="bsm" onclick="netPaste('jinv')">📋 Paste</button>
     <button class="bsm bins" onclick="netMakeReply()">↩ Create reply code</button>
-    ${NET.joinCode?`<label style="margin-top:8px;display:block">Reply code — send this back to the host</label><textarea class="code" readonly onclick="this.select()">${NET.joinCode}</textarea><button class="bsm" onclick="netCopy('${NET.joinCode}')">📋 Copy reply</button>`:''}
+    ${NET.joinCode?`<label style="margin-top:8px;display:block">Reply code — send this back to the host</label><textarea class="code" readonly onclick="this.select()">${NET.joinCode}</textarea><button class="bsm" onclick="netCopy('${NET.joinCode}')">📋 Copy reply</button>${navigator.share?`<button class="bsm" onclick="netShare('${NET.joinCode}','reply')">📤 Share</button>`:''}`:''}
     <div id="jst" class="gdim" style="margin-top:8px">${st}</div><ul class="lobby" id="jlob">${NET.lobby.map(x=>`<li><span>${x}</span></li>`).join('')}</ul></div>`,[]);}
 async function netMakeReply(){const n=document.getElementById('jn');if(n)NET.me0={name:n.value.trim()||'Guest',team:document.getElementById('jt').value.trim()||'Guest Racing',perk:document.getElementById('jp').value,avatar:avVal('jav',0)};
   else{const p=G.players&&G.players[G.netSeats?G.netSeats.indexOf(NET.id):-1];NET.me0={name:p?p.name:'Guest',team:p?p.team:'',perk:''};}
@@ -3041,6 +3064,12 @@ function renderStats(){const S=stGet(),view=STATV,s=view==='career'?S.career:S.s
   document.getElementById('tab-stats').innerHTML=`<div class="hero-banner" style="--hero:rgba(72,149,239,.35)"><div class="hero-content"><div class="hero-tag">📊 Team stats</div><div class="hero-title">${avatarImg(G.avatar,34)} ${G.team}</div><div class="hero-desc">${G.name}${G.league?' · league of '+G.players.length:''} · ${noSeason()?'week '+G.week:'season '+G.season+', week '+G.week}</div></div></div>${seg}${body}`;
   fxEnter();}
 
+// ══════════ INSTALLABLE APP (PWA / Android) ══════════
+// Served over http(s), the game registers sw.js (offline play) and offers an Install button when the browser allows it.
+let INSTALL=null;
+if(typeof window!=='undefined'&&'serviceWorker' in navigator&&/^https?:/.test(location.protocol))window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
+if(typeof window!=='undefined')window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();INSTALL=e;if(titleOpen())renderTitle();});
+function installApp(){if(!INSTALL){toast('Open your browser menu and choose Install app or Add to Home screen','i',6000);return;}INSTALL.prompt();INSTALL.userChoice.finally(()=>{INSTALL=null;if(titleOpen())renderTitle();});}
 // ══════════ v5 HOOKS ══════════
 // Decorate the existing actions without changing their logic.
 const _showRaceResult=showRaceResult;
