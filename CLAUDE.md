@@ -78,6 +78,13 @@ Everything lives in the one `<script>` block, in this order:
   player's too (marked by an orange glow), plus shuffled rival names (`rivalNames`), lane order, speed curves, lights-out delay and scenery
   variants — keep races randomised. A missing sheet falls back to the drawn `carSvg()`. Car motion must stay monotonic (only forward) and cross
   the line in result order. Credits: `assets/CREDITS.md`; keep the in-game `#credit` line for the CC BY Formula cars.
+- **v5 championship**: races run a grid (`rivalGrid` + `runGrid`, `CFG.grid` cars); points from `PTS` via `racePts` (drag duel `CFG.dragWinPts`/0),
+  prizes via `racePrize`. AI teams score with `awardAI`; `aiRaceWeek()` (in `worldWeek`) races the AI teams that didn't race with you
+  (`CFG.aiRaceChance`). Title = P1 in `standings()` (players + AI); `worldWeek` snapshots `G.final` before resetting AI points, and `seasonEnd` reads it.
+  Leagues: `runLeagueGP()` runs first in the league `endWeek`; only the GP scores points (local races `champ=false`). `G.settings.win` (null = vanilla) and
+  `G.settings.gp` come from the setup; `leagueWinCheck()` ends the game. Calibrated with the bot: `CFG.fieldPace` 2, 7th–8th neutral for reputation.
+  Titles are now contested, so fewer promotions with the promotion ladder on: bankruptcy rose (100 weeks, Easy/Normal/Hard ≈ 48/73/81%).
+- **v5 avatars**: `AVATARS` (15 helmet SVGs), `avatarSvg`, `avatarImg`, `avatarPicker`; `avatar` is in `PERS`.
 - **v5 stats**: `G.st` (in `PERS`, per manager) = {season, career, past[]}. Actions call the `st*()` hooks (`stBuy`, `stSale`, `stRace`,
   `stTravel`, `stCtr`, `stAdd`); `stPeak()` runs in `render()`; `stSeasonEnd()` archives a season row before `G.champ` resets. Hooks only record.
   A new sale path must call `stSale(item, price)` per unit. Device records live in `meta().rec` via `recBeat()` (saved only when beaten).

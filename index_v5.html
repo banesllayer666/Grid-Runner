@@ -625,6 +625,16 @@ body.spect #content button:not(.fb):not(.gtab),body.spect #etb{pointer-events:no
 .sbar span{display:block;height:100%;transition:width .7s var(--ease)}
 .sleg{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--dim)}.sleg i{display:inline-block;width:9px;height:9px;margin-right:4px;vertical-align:-1px}
 .srate{display:inline-block;width:70px;height:6px;background:var(--surface);vertical-align:middle;margin-right:6px}.srate span{display:block;height:100%;background:var(--success)}
+/* avatars, standings, league setup */
+.av{display:inline-block;vertical-align:middle;overflow:hidden;flex:none}.av svg{width:100%;height:100%;display:block}
+#hav{margin-right:6px;display:inline-flex}
+.avai{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;background:var(--surface);border:1px solid var(--border);font:600 9px var(--font-m);color:var(--dim)}
+.avp{display:grid;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:4px;margin:4px 0 6px}
+.avb{padding:0;border:2px solid transparent;background:none;aspect-ratio:1;cursor:pointer}.avb svg{width:100%;height:100%;display:block}
+.avb.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}.avb:hover{transform:scale(1.08)}
+table.stand{width:100%;border-collapse:collapse;font-size:12px}table.stand th{text-align:left;color:var(--dim);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--border-h)}
+table.stand td{padding:5px 6px;border-bottom:1px solid var(--border);vertical-align:middle}table.stand tr.me td{background:rgba(255,92,26,.08)}table.stand tr.me td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+.lgset{border:1px solid var(--border);padding:8px 10px;margin:8px 0;background:var(--surface)}.lgc{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 10px}.lgc p{grid-column:1/-1}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style>
 </head>
@@ -655,7 +665,7 @@ body.spect #content button:not(.fb):not(.gtab),body.spect #etb{pointer-events:no
     </div>
   </div>
   <div class="hsep"></div>
-  <div id="city-badge"><span id="hfl">🇵🇹</span><span id="hct">Portimão</span></div>
+  <div id="city-badge"><span id="hav"></span><span id="hfl">🇵🇹</span><span id="hct">Portimão</span></div>
   <div class="hsep"></div>
   <div class="hstat">
     <span class="lbl">
@@ -931,7 +941,8 @@ const CFG={raceFeePct:0.06,raceEvery:3,racesPerWeek:1,repairPct:0.22,repairMaxLo
   angelCut:0.05,sharkTerm:6,sharkPenalty:0.10,relegatePct:0.35,tipCost:1500,drvTerm:12,signWeeks:2,releasePct:0.5,sprintPts:500,sprintTitle:50000,sprintLen:30,richNW:250000,metaKey:'druglane_meta',
   insBase:200,insPct:0.004,insCover:0.75,satDecay:0.8,satDrop:0.025,satMax:0.3,satCopy:6,copyMul:0.8,copyDur:4,nemMax:6,nemWeight:0.5,storyChance:0.07,bulkAP:2,devCost:12000,devMax:4,devPace:2,stockChance:0.5,
   bmPrice:0.6,bmCond:70,bmCondMax:92,bmDsq:0.08,bmRaceFine:0.2,bmRep:10,bmCatch:0.2,bmCatchGrey:0.06,bmFine:0.6,
-  stockQty:[[5000,8],[20000,5],[50000,3],[1e9,2]],bmQty:0.5};
+  stockQty:[[5000,8],[20000,5],[50000,3],[1e9,2]],bmQty:0.5,
+  grid:10,fieldPace:2,aiSpread:16,guestGap:3,aiRel:85,dragWinPts:20,dragEdge:10,aiRaceChance:0.35};
 // Promotion ladder ('tiers' rule): replaces the automatic per-season rival and prize growth.
 const TIERS=[{n:'Club Series',prize:1,rival:0,upkeep:0},{n:'National Series',prize:1.25,rival:6,upkeep:300},{n:'International Series',prize:1.6,rival:12,upkeep:700},{n:'World Championship',prize:2,rival:18,upkeep:1200}];
 // Race-day calls ('calls' rule). Each option: ch = chance it works ('x' = this race's rolled odds, '1-x' its inverse), g/b = pace (p) and finish-chance (r) effects.
@@ -1196,39 +1207,142 @@ function makeCall(f,i){
 function runRace(race){
   const pf=perfScore(race);G.opt=null;G.callMod=null;const note=G.callNote;G.callNote='';
   if(note)addLog('📻 '+note,'');
-  if(Math.random()<Math.max(0.02,(100-pf.rel)*0.0045)){
+  // In a league only the League Grand Prix scores points; local races pay prize money.
+  const champ=!G.league&&!noSeason();
+  const me={n:G.team,me:1,pace:pf.score,luck:30,dnf:Math.random()<Math.max(0.02,(100-pf.rel)*0.0045)};
+  const grid=runGrid([me].concat(rivalGrid(race,1)));if(champ)awardAI(race,grid);
+  const field=grid.map(c=>({n:c.n,me:!!c.me,pos:c.pos})),nem=nemOf(race.disc),nc=nem&&grid.find(c=>c.ai===nem);
+  if(me.pos==='DNF'){
     G.dnfWk=true;postRace('DNF');wearParts(28);G.raceHist.unshift({wk:G.week,n:race.n,d:race.disc,pos:'DNF',prize:0,pts:0});if(G.raceHist.length>12)G.raceHist.pop();addLog('DNF in '+race.n+' — mechanical failure!','b');stRace(race,'DNF',0,0);goalTick('DNF');
-    showRaceResult(race,{pos:'DNF',prize:0,pts:0,note,pf});render();return;
+    showRaceResult(race,{pos:'DNF',prize:0,pts:0,note,pf,field,champ});render();return;
   }
-  const pl=(Math.random()-0.5)*30,rl=(Math.random()-0.5)*28;
-  const ps=pf.score+pl;
-  const nem=nemOf(race.disc),ne=nem?nem.edge*CFG.nemWeight:0;
-  const rs=race.rival+rivalAdj()+ne+rl;
-  const why={pf,field:race.rival+rivalAdj()+ne,luck:pl-rl};
-  if(nem){const ahead=ps>race.rival+rivalAdj()+nem.edge+(Math.random()-0.5)*28;why.nem={n:nem.n,ahead,edge:nem.edge};nemResult(nem,ahead);}
-  const diff=ps-rs;
-  let pos;
-  if(diff>18)pos=1;else if(diff>8)pos=2;else if(diff>0)pos=3;
-  else if(diff>-10)pos=4;else if(diff>-20)pos=6;else pos=10;
-  const prize=Math.round((race.prize[Math.min(pos-1,race.prize.length-1)]||0)*prizeMul());
-  const pts=[25,18,15,12,10,8,6,4,2,1][pos-1]||1;
+  const pos=me.pos,prize=racePrize(race,pos),pts=champ?racePts(race,pos):0;
+  const why={pf,field:Math.max(...grid.filter(c=>!c.me).map(c=>c.pace)),luck:me.score-me.pace,grid:grid.length};
+  if(nc){const ahead=nc.pos==='DNF'||nc.pos>pos;why.nem={n:nem.n,ahead,edge:nem.edge};nemResult(nem,ahead);}
   G.cash+=prize;G.champ.pts+=pts;postRace(pos);
   if(G.loans.angel>0&&prize>0){const cut=Math.round(prize*CFG.angelCut);G.cash-=cut;addLog('Angel investors took their '+Math.round(CFG.angelCut*100)+'% cut: '+fmt(cut),'b');}
   if(pos===1){G.champ.wins++;unlock('win');if(!G.greyOk){G.greyOk=true;toast('🔓 Grey Market Unlocked — first race victory!','w',5000);}}
-  G.rep=Math.min(100,G.rep+(pos<=3?8:pos<=6?3:-2));
+  G.rep=Math.min(100,G.rep+(pos<=3?8:pos<=6?3:pos<=8?0:-2));
   wearParts(pos<=3?10:pos<=6?14:20);
   G.raceHist.unshift({wk:G.week,n:race.n,d:race.disc,pos,prize,pts});
   if(G.raceHist.length>12)G.raceHist.pop();
-  addLog('P'+pos+' in '+race.n+' · Prize: '+fmt(prize),'g');stRace(race,pos,prize,pts);goalTick(pos);
-  showRaceResult(race,{pos,prize,pts,note,why});render();
+  addLog('P'+pos+' in '+race.n+' · '+(champ?pts+' pts · ':'')+'Prize: '+fmt(prize),'g');stRace(race,pos,prize,pts);goalTick(pos);
+  showRaceResult(race,{pos,prize,pts,note,why,field,champ});render();
 }
+// ══════════ RACE GRID & CHAMPIONSHIP (v5) ══════════
+// Every race is run against a real grid: CFG.grid cars (you, the AI teams, guest teams to fill), each with a pace and luck.
+// Finishing order gives official points 25-18-15-12-10-8-6-4-2-1 for P1–P10; a drag race is a head-to-head duel worth
+// CFG.dragWinPts to the winner and nothing to the loser. AI teams score real points the same way and race once a week:
+// in your race if they were on its grid, otherwise in a simulated race of their own (aiRaceWeek). The title goes to whoever
+// tops the standings (players and AI teams) when the season ends. In a league, only the League Grand Prix scores points.
+const PTS=[25,18,15,12,10,8,6,4,2,1];
+function racePts(race,pos){if(pos==='DNF'||pos==='DNS')return 0;return race.disc==='drag'?(pos===1?CFG.dragWinPts:0):(PTS[pos-1]||0);}
+function racePrize(race,pos){if(pos==='DNF'||pos==='DNS')return 0;const i=race.disc==='drag'?(pos===1?0:3):Math.min(pos-1,race.prize.length-1);return Math.round((race.prize[i]||0)*prizeMul());}
+function aiPace(a,race){return race.rival+rivalAdj()+CFG.fieldPace+(a.str-1)*CFG.aiSpread+(F('nemesis')&&a.spec===race.disc?(a.edge||0)*CFG.nemWeight:0);}
+// Rival cars to fill a grid around `taken` entrants: AI teams first, then guest teams a little slower each.
+function rivalGrid(race,taken){ensureAI();const drag=race.disc==='drag',n=Math.max(drag?1:0,(drag?2:CFG.grid)-taken);
+  const ai=drag?shuffle(G.ai).slice(0,n):G.ai.slice(0,n),out=ai.map(a=>({n:a.n,t:'AI team',ai:a,pace:aiPace(a,race)+(drag?CFG.dragEdge:0),rel:CFG.aiRel}));
+  const off=absWk()*3;for(let i=0;out.length<n;i++)out.push({n:GUEST_TEAMS[(off+i)%GUEST_TEAMS.length],t:'Guest team',guest:1,pace:race.rival+rivalAdj()+CFG.fieldPace-CFG.guestGap*(i+1),rel:CFG.aiRel});
+  return out;}
+// Run the grid: luck, retirements, then finishing order. Cars that retire are classified DNF after the finishers.
+function runGrid(cars){cars.forEach(c=>{if(c.dns){c.pos='DNS';return;}c.score=c.pace+(Math.random()-0.5)*(c.luck||28);if(c.dnf==null)c.dnf=c.rel!=null&&Math.random()<Math.max(0.02,(100-c.rel)*0.0045);});
+  const fin=cars.filter(c=>!c.dns&&!c.dnf).sort((a,b)=>b.score-a.score);fin.forEach((c,i)=>c.pos=i+1);
+  cars.filter(c=>c.dnf&&!c.dns).forEach(c=>c.pos='DNF');return fin.concat(cars.filter(c=>c.pos==='DNF'),cars.filter(c=>c.pos==='DNS'));}
+function awardAI(race,grid){grid.forEach(c=>{if(!c.ai)return;const a=c.ai;a.pts=(a.pts||0)+racePts(race,c.pos);if(c.pos===1)a.wins=(a.wins||0)+1;a.wk=absWk();});}
+// AI teams that didn't race with you this week race somewhere else. In a league they only race in the Grand Prix.
+function aiRaceWeek(){if(G.league||noSeason())return;ensureAI();const idle=G.ai.filter(a=>a.wk!==absWk()&&Math.random()<CFG.aiRaceChance);if(!idle.length)return;
+  const runs=ALLRACES.filter(raceRuns),race=runs[Math.floor(Math.random()*runs.length)]||ALLRACES[0];
+  let cars=idle.map(a=>({n:a.n,ai:a,pace:aiPace(a,race),rel:CFG.aiRel}));
+  if(race.disc==='drag'){cars=shuffle(cars);for(let i=0;i<cars.length;i+=2){const duel=cars.slice(i,i+2);if(duel.length<2)duel.push({n:'Guest',guest:1,pace:race.rival+rivalAdj()+CFG.fieldPace,rel:CFG.aiRel});awardAI(race,runGrid(duel));}return;}
+  const off=absWk()*5;for(let i=0;cars.length<CFG.grid;i++)cars.push({n:GUEST_TEAMS[(off+i)%GUEST_TEAMS.length],guest:1,pace:race.rival+rivalAdj()+CFG.fieldPace-CFG.guestGap*(i+1),rel:CFG.aiRel});
+  awardAI(race,runGrid(cars));}
+// Championship standings: every manager plus every AI team, by points, then wins.
+function standings(){stash();const ps=(G.league?G.players:[G]).map((p,i)=>({n:p.name,t:p.team,av:p.avatar,pts:p.champ.pts,wins:p.champ.wins,pi:G.league?i:0,x:p.dead}));
+  ensureAI();return ps.concat(G.ai.map(a=>({n:a.n,t:'AI team',pts:a.pts||0,wins:a.wins||0,ai:1}))).sort((a,b)=>b.pts-a.pts||b.wins-a.wins);}
+function myStanding(){const s=standings(),me=s.find(x=>!x.ai&&x.pi===(G.league?G.cur:0));return{s,me,rank:s.indexOf(me)+1};}
+// Kept for the balance bot and older callers: the points the current leader has.
+function titleNeed(){if(noSeason())return Infinity;const s=standings();return s.length?s[0].pts:0;}
+function titlePts(){return titleNeed();}
+function standRow(r,i,meIdx){return `<tr${r.pi===meIdx&&!r.ai?' class="me"':''}><td>${i+1}</td><td>${r.ai?'<span class="avai">AI</span>':avatarImg(r.av,22)}</td><td>${r.n}<br><span class="gdim">${r.t}${r.x?' · 💀 bankrupt':''}</span></td><td><b>${r.pts}</b></td><td>${r.wins}</td></tr>`;}
+function standTable(s,meIdx){return `<table class="stand"><tr><th>#</th><th></th><th>Team</th><th>Pts</th><th>Wins</th></tr>${s.map((r,i)=>standRow(r,i,meIdx)).join('')}</table>`;}
+function champLine(){if(noSeason())return 'no championship (endless)';const {s,rank}=myStanding(),lead=s[0];
+  return rank===1?`championship: <b>P1</b>${s[1]?' · '+(lead.pts-s[1].pts)+' pts ahead of '+s[1].n:''}`:`championship: <b>P${rank}</b> of ${s.length} · ${lead.pts-(s[rank-1]||{pts:0}).pts} pts behind ${lead.n}`;}
+// ── League Grand Prix: in a league every manager races this event each week (or every N weeks), wherever they are.
+// It is free, takes no AP, and is the only race that scores championship points in a league.
+function gpEvery(){return Math.max(1,+(G.settings&&G.settings.gp)||1);}
+function gpDue(){return G.league&&absWk()%gpEvery()===0;}
+function gpRace(w){const k=Math.floor(((w||absWk())-1)/gpEvery());return ALLRACES[(k*7+(G.gpSeed||0))%ALLRACES.length];}
+function nextGpWk(){let w=absWk();while(w%gpEvery()!==0)w++;return w;}
+function runLeagueGP(){if(!gpDue())return;const race=gpRace(),cars=[],cur=G.cur;
+  for(let i=0;i<G.players.length;i++){loadP(i);if(G.dead)continue;
+    if(G.banned>0){cars.push({n:G.name,t:G.team,pi:i,av:G.avatar,dns:1});continue;}
+    const pf=perfScore(race);cars.push({n:G.name,t:G.team,pi:i,av:G.avatar,pace:pf.score,rel:pf.rel,luck:30});}
+  const drag=race.disc==='drag',grid=runGrid(cars.concat(rivalGrid(race,drag?Math.max(1,cars.length):cars.length).slice(0,drag?1:undefined)));
+  grid.forEach(c=>{c.pts=racePts(race,c.pos);c.prize=racePrize(race,c.pos);});
+  awardAI(race,grid);
+  grid.forEach(c=>{if(c.pi==null)return;loadP(c.pi);const pos=c.pos;
+    if(pos==='DNS'){addLog('🏁 League GP '+race.n+': did not start (driver injured)','b');stash();return;}
+    G.cash+=c.prize;G.champ.pts+=c.pts;postRace(pos==='DNF'?'DNF':pos);
+    if(pos==='DNF'){G.dnfWk=true;wearParts(28);}else{if(pos===1){G.champ.wins++;unlock('win');if(!G.greyOk)G.greyOk=true;}G.rep=Math.max(0,Math.min(100,G.rep+(pos<=3?8:pos<=6?3:pos<=8?0:-2)));wearParts(pos<=3?10:pos<=6?14:20);}
+    G.raceHist.unshift({wk:G.week,n:race.n,d:race.disc,pos,prize:c.prize,pts:c.pts,gp:1});if(G.raceHist.length>12)G.raceHist.pop();
+    stRace(race,pos,c.prize,c.pts);addLog('🏁 League GP '+race.n+': '+(pos==='DNF'?'DNF':'P'+pos)+' · '+c.pts+' pts · '+fmt(c.prize),pos==='DNF'?'b':'g');stash();});
+  loadP(cur);
+  G.gpLast={id:race.id,season:G.season,wk:G.week,stamp:absWk()+'-'+Math.random().toString(36).slice(2,7),res:grid.map(c=>({n:c.n,t:c.t||'',pos:c.pos,pts:c.pts,prize:c.prize,ai:!!c.ai,guest:!!c.guest,pi:c.pi,av:c.av}))};}
+function showGP(){const g=G.gpLast;if(!g)return;const race=findRace(g.id)||{n:g.id,disc:'formula'};
+  openModal('🏁 League Grand Prix — '+race.n,`<div class="gdim" style="margin-bottom:6px">${discE(race.disc)} · season ${g.season}, week ${g.wk} · ${race.disc==='drag'?'drag: '+CFG.dragWinPts+' points for the win':'points 25-18-15-12-10-8-6-4-2-1'}</div>
+    <table class="stand"><tr><th>Pos</th><th></th><th>Team</th><th>Pts</th><th>Prize</th></tr>${g.res.map(r=>`<tr${r.pi!=null?' class="me"':''}><td>${typeof r.pos==='number'?'P'+r.pos:r.pos}</td><td>${r.pi!=null?avatarImg(r.av,22):r.ai?'<span class="avai">AI</span>':''}</td><td>${r.n}<br><span class="gdim">${r.pi!=null?r.t:r.ai?'AI team':'Guest team'}</span></td><td><b>${r.pts}</b></td><td>${r.pi!=null?fmt(r.prize):''}</td></tr>`).join('')}</table>
+    <div class="ct" style="margin-top:10px">Championship</div>${standTable(standings(),-1)}`,[]);document.getElementById('mb').classList.add('wide');}
+// ── League win conditions: vanilla (career: first to CFG.careerTitles titles) or custom goals set at the start.
+function leagueGoals(){const w=G.settings&&G.settings.win;if(w)return w;return G.mode==='career'?{titles:CFG.careerTitles}:{};}
+function goalText(w){const a=[];if(w.titles)a.push(w.titles+' title'+(w.titles>1?'s':''));if(w.wins)a.push(w.wins+' race wins');if(w.nw)a.push(fmt(w.nw)+' net worth');if(w.rep)a.push(w.rep+' reputation');
+  return (a.length?'first to '+a.join(' or '):'no goal — play on')+(w.seasons?' · ends after '+w.seasons+' season'+(w.seasons>1?'s':''):'');}
+// Checked after every league week. Returns the winning manager's name, or ''.
+function leagueWinCheck(seasonOver){if(!G.league||G.over)return '';const w=leagueGoals(),ps=G.players.filter(p=>!p.dead);
+  const met=ps.filter(p=>(w.titles&&p.titles>=w.titles)||(w.wins&&p.champ.wins>=w.wins)||(w.nw&&nw(p)>=w.nw)||(w.rep&&p.rep>=w.rep));
+  let win=met.sort((a,b)=>b.titles-a.titles||b.champ.wins-a.champ.wins||nw(b)-nw(a))[0];
+  if(!win&&seasonOver&&w.seasons&&G.season>w.seasons)win=ps.slice().sort((a,b)=>b.titles-a.titles||b.champ.wins-a.champ.wins||nw(b)-nw(a))[0];
+  if(!win)return '';G.over=true;G.winner=win.name;addLog('🏆 '+win.name+' ('+win.team+') wins the league!','ev');return win.name;}
+
+// ══════════ AVATARS (v5) ══════════
+// 15 premade racing-helmet avatars, drawn as SVG: [name, shell, livery, visor, background, livery pattern].
+const AVATARS=[
+  ['Blaze','#ff5c1a','#f2f4f6','#1b1d22','#2a1508','stripe'],['Glacier','#4895ef','#f2f4f6','#0d2742','#0b1a2e','chevron'],
+  ['Venom','#57cc99','#0d0e10','#ffd60a','#0c2018','flame'],['Royal','#5b3fd1','#ffd60a','#1b1d22','#17112e','crown'],
+  ['Ghost','#e9ecef','#8a8f98','#1b1d22','#202328','halves'],['Inferno','#e63946','#ffd60a','#1b1d22','#2a0d10','flame'],
+  ['Sunrise','#ffd60a','#ff5c1a','#1b1d22','#2a2208','stripes2'],['Carbon','#2b2e35','#ff5c1a','#ff5c1a','#121317','checker'],
+  ['Mint','#7ee0c3','#1b1d22','#0d2742','#0f2420','dots'],['Bolt','#1d3557','#ffd60a','#a8dadc','#0b1424','bolt'],
+  ['Rose','#f28ab3','#f2f4f6','#1b1d22','#2a1220','star'],['Desert','#d9a35b','#6b4423','#1b1d22','#22180c','stripe'],
+  ['Toxic','#b5e61d','#0d0e10','#1b1d22','#1a2108','checker'],['Navy','#14213d','#e63946','#f2f4f6','#0a1020','stripes2'],
+  ['Sterling','#a7adb7','#e63946','#1b1d22','#1a1c20','chevron']];
+function avatarSvg(i){const [nm,c,l,v,bg,pat]=AVATARS[((i|0)%AVATARS.length+AVATARS.length)%AVATARS.length],id='hv'+i;
+  const P={stripe:`<rect x="10" y="26" width="48" height="6" fill="${l}"/>`,stripes2:`<rect x="10" y="22" width="48" height="4" fill="${l}"/><rect x="10" y="30" width="48" height="4" fill="${l}"/>`,
+    chevron:`<path d="M10 20 L30 30 L10 40 Z" fill="${l}"/><path d="M18 20 L38 30 L18 40 L14 40 L34 30 L14 20Z" fill="${l}" opacity=".6"/>`,
+    flame:`<path d="M10 44 C16 36 18 40 22 32 C24 38 28 36 30 28 C32 36 36 34 38 42 L38 52 L10 52Z" fill="${l}"/>`,
+    crown:`<path d="M16 24 L20 16 L24 22 L28 14 L32 22 L36 16 L40 24 Z" fill="${l}"/>`,halves:`<rect x="10" y="10" width="24" height="44" fill="${l}"/>`,
+    checker:`<g fill="${l}">${[0,1,2,3,4,5].map(r=>[0,1,2,3,4,5].map(k=>(r+k)%2?`<rect x="${12+k*6}" y="${18+r*6}" width="6" height="6"/>`:'').join('')).join('')}</g>`,
+    dots:`<g fill="${l}"><circle cx="18" cy="22" r="3"/><circle cx="28" cy="18" r="3"/><circle cx="22" cy="32" r="3"/><circle cx="32" cy="28" r="3"/><circle cx="16" cy="40" r="3"/></g>`,
+    bolt:`<path d="M30 12 L18 32 L26 32 L20 50 L36 26 L28 26 L34 12Z" fill="${l}"/>`,star:`<path d="M24 16 L27 25 L36 25 L29 31 L32 40 L24 34 L16 40 L19 31 L12 25 L21 25Z" fill="${l}"/>`};
+  return `<svg viewBox="0 0 64 64" role="img" aria-label="${nm} helmet"><rect width="64" height="64" fill="${bg}"/><defs><clipPath id="${id}"><path d="M10 38 C10 20 22 10 36 10 C49 10 56 20 56 33 L56 42 C56 48 52 52 46 52 L18 52 C13 52 10 48 10 42 Z"/></clipPath></defs>
+    <rect x="22" y="50" width="22" height="8" fill="#0d0e10"/><path d="M10 38 C10 20 22 10 36 10 C49 10 56 20 56 33 L56 42 C56 48 52 52 46 52 L18 52 C13 52 10 48 10 42 Z" fill="${c}"/>
+    <g clip-path="url(#${id})">${P[pat]||''}</g><path d="M32 24 L56 24 L56 37 L35 37 C32 37 30 35 30 32 L30 27 C30 25 31 24 32 24Z" fill="${v}"/>
+    <path d="M36 27 L52 27" stroke="#fff" stroke-opacity=".45" stroke-width="2"/><path d="M10 38 C10 20 22 10 36 10 C49 10 56 20 56 33 L56 42 C56 48 52 52 46 52 L18 52 C13 52 10 48 10 42 Z" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="1.5"/></svg>`;}
+function avatarImg(i,s){return `<span class="av" style="width:${s||28}px;height:${s||28}px" title="${AVATARS[(i|0)%AVATARS.length][0]}">${avatarSvg(i|0)}</span>`;}
+// A row of all 15 to choose from; the chosen index is kept in the container's data-v.
+function avatarPicker(id,sel){return `<div class="avp" id="${id}" data-v="${sel|0}">${AVATARS.map((a,i)=>`<button type="button" class="avb${i===(sel|0)?' on':''}" title="${a[0]}" onclick="pickAv(this,${i})">${avatarSvg(i)}</button>`).join('')}</div>`;}
+function pickAv(btn,i){const p=btn.parentNode;p.dataset.v=i;p.querySelectorAll('.avb').forEach((b,k)=>b.classList.toggle('on',k===i));}
+function avVal(id,def){const e=typeof document!=='undefined'&&document.getElementById(id);return e&&e.dataset&&e.dataset.v!=null?+e.dataset.v:(def|0);}
+
+function gpBox(){const w=nextGpWk(),r=gpRace(w);return '<div class="ib">🏁 <strong>League Grand Prix:</strong> '+r.n+' · '+discE(r.disc)+' — '+(w===absWk()?'at the end of this week':'week '+wkLabel(w))+'. Every manager races it automatically, wherever they are: free, no AP. It is the only race that scores championship points; the races below pay prize money only.</div>';}
+function showLeagueWin(){const ps=G.players.slice().sort((a,b)=>(b.name===G.winner)-(a.name===G.winner)||b.titles-a.titles||b.champ.wins-a.champ.wins||nw(b)-nw(a));
+  openModal('🏆 '+G.winner+' wins the league','<p class="gdim">Goal: '+goalText(leagueGoals())+'</p><table class="stand"><tr><th></th><th>Manager</th><th>Titles</th><th>Wins</th><th>Net worth</th><th>Rep</th></tr>'+ps.map(p=>'<tr'+(p.name===G.winner?' class="me"':'')+'><td>'+avatarImg(p.avatar,24)+'</td><td>'+p.name+'<br><span class="gdim">'+p.team+(p.dead?' · 💀':'')+'</span></td><td>'+p.titles+'</td><td>'+p.champ.wins+'</td><td>'+fmt(nw(p))+'</td><td>'+p.rep+'</td></tr>').join('')+'</table>',
+    [{l:'New game',fn:()=>{clearSave();location.reload();},c:'bcon'}]);document.getElementById('mb').classList.add('wide');}
 // Post-race breakdown: why the result happened, in score points.
 function raceWhy(r){
   const n=v=>(v>=0?'+':'')+Math.round(v);
   if(r.pos==='DNF'&&r.pf)return 'Finish chance was '+Math.round(r.pf.rel)+'% — the car broke. Repair worn parts or fit reliability parts.';
   if(!r.why)return '';const w=r.why,p=w.pf.pt,gap=w.pf.score-w.field;
   return 'Car '+n(p.car)+' · driver &amp; staff '+n(p.drv)+' · part fit '+n(p.fit)+(p.tyre?' · tyres '+n(p.tyre):'')+(Math.round(p.extra)?' · setup/calls/HQ '+n(p.extra):'')
-    +'<br>Your pace '+Math.round(w.pf.score)+' vs field '+Math.round(w.field)+' ('+n(gap)+') · race luck '+n(w.luck)
+    +'<br>Your pace '+Math.round(w.pf.score)+' vs fastest rival '+Math.round(w.field)+' ('+n(gap)+') · race luck '+n(w.luck)+(w.grid?' · '+w.grid+'-car grid':'')
     +(w.nem?'<br>⚔ '+w.nem.n+(w.nem.ahead?' finished behind you — they will push harder next time.':' finished ahead of you.'):'');
 }
 
@@ -1279,22 +1393,22 @@ function renderDrivers(){
   <div class="pgrid">${DRIVERS.map(d=>{const c=signCost(d.id),tot=c.sign+c.rel;return`<div class="pcard"><div class="pcn">${d.n}</div><div class="pst"><span>Skill ${d.skill}${F('traits')&&TRAIT_OF[d.id]?' · '+TRAITS[TRAIT_OF[d.id]]:''}</span><span>Wage ${fmt(d.wage)}/wk</span></div><div class="pacts">${G.driver===d.id?'<span style="font-size:11px;color:var(--success)">✓ Signed</span>':`<button class="bsm bins" onclick="hireDriver('${d.id}')">Sign${tot?' '+fmt(tot):''}</button>${c.rel?`<span style="font-size:10px;color:var(--dim);padding:3px">incl. ${fmt(c.rel)} release fee</span>`:''}`}</div></div>`;}).join('')}</div>`);
 }
 function seasonEnd(n){
-  const need=titleNeed(n),pts=G.champ.pts,won=pts>=need;
+  const fin=G.final||standings(),mine=fin.find(x=>!x.ai&&x.pi===(G.league?G.cur:0))||{pts:G.champ.pts,wins:G.champ.wins},rank=(fin.indexOf(mine)+1)||fin.length,pts=mine.pts,won=rank===1,top=fin[0]||mine;
   if(won){G.titles++;G.rep=Math.min(100,G.rep+10);unlock('title');}
   let move='';
   if(F('tiers')){const t=G.tier||0;
     if(won&&t<TIERS.length-1){G.tier=t+1;move='⬆ Promoted to the '+TIERS[G.tier].n+' — bigger prizes, faster rivals, higher costs.';}
-    else if(!won&&t>0&&pts<need*CFG.relegatePct){G.tier=t-1;move='⬇ Relegated to the '+TIERS[G.tier].n+'.';}
+    else if(!won&&t>0&&rank>fin.length-3){G.tier=t-1;move='⬇ Relegated to the '+TIERS[G.tier].n+'.';}
     if(move)addLog(move,'ev');}
   stSeasonEnd(n,pts,won);
   G.champ={pts:0,wins:G.champ.wins};
   if(F('dev')){G.devB=(G.dev||0)*CFG.devPace;G.dev=0;if(G.devB)addLog('🔬 Next-season package fitted: +'+G.devB+' pace this season','ev');}
-  addLog((won?'🏆 Season '+n+' CHAMPIONS':'Season '+n+' ended without the title')+' — '+pts+'/'+need+' pts','ev');
+  addLog((won?'🏆 Season '+n+' CHAMPIONS':'Season '+n+': P'+rank+' of '+fin.length+' — champion '+top.n)+' · '+pts+' pts','ev');
   if(G.mode==='sprint'){G.score=sprintScore(pts,won);recordScore(G.score);return;}
   const victory=G.mode==='career'&&G.titles>=CFG.careerTitles&&!G.won;
   if(victory)G.won=true;
   if(!G.league)openModal(won?'🏆 Season '+n+' Champions!':'Season '+n+' complete',
-    '<p>Points: <strong>'+pts+' / '+need+'</strong> needed for the title.</p><p style="margin-top:8px">Titles won: <strong>'+G.titles+'</strong>'+(G.mode==='career'?' / '+CFG.careerTitles:'')+'</p>'+(move?'<p style="margin-top:8px">'+move+'</p>':'')+(victory?'<p style="margin-top:10px;color:var(--gold)">🎉 CAREER COMPLETE — you are a motorsport legend! Press Endless to keep playing, or Cancel to continue as is.</p>':''),
+    '<p>Final position: <strong>P'+rank+' of '+fin.length+'</strong> with '+pts+' points'+(won?'':' — '+top.n+' won with '+top.pts)+'.</p>'+standTable(fin,0)+'<p style="margin-top:8px">Titles won: <strong>'+G.titles+'</strong>'+(G.mode==='career'?' / '+CFG.careerTitles:'')+'</p>'+(move?'<p style="margin-top:8px">'+move+'</p>':'')+(victory?'<p style="margin-top:10px;color:var(--gold)">🎉 CAREER COMPLETE — you are a motorsport legend! Press Endless to keep playing, or Cancel to continue as is.</p>':''),
     victory?[{l:'♾ Endless',fn:()=>{G.mode='endless';render();},c:'bcon'}]:[]);
 }
 // Sprint mode: one season, then a final score. Best scores and achievements live in CFG.metaKey, outside any save.
@@ -1303,7 +1417,7 @@ function meta(){try{const m=JSON.parse(localStorage.getItem(CFG.metaKey));if(m&&
 function saveMeta(m){try{localStorage.setItem(CFG.metaKey,JSON.stringify(m));}catch(e){}}
 function recordScore(s){const m=meta();m.best.push({s,n:G.name,d:G.settings.diff,at:new Date().toLocaleDateString()});m.best.sort((a,b)=>b.s-a.s);m.best=m.best.slice(0,5);saveMeta(m);}
 function bestTable(){const b=meta().best;return b.length?'<table style="width:100%;font-size:12px;margin-top:6px">'+b.map((r,i)=>`<tr><td>${i+1}</td><td>${r.n}</td><td>${r.d}</td><td>${r.at}</td><td style="text-align:right">${r.s.toLocaleString()}</td></tr>`).join('')+'</table>':'<div style="font-size:12px;color:var(--dim)">No sprint scores yet.</div>';}
-function showOver(){
+function showOver(){if(G.league&&G.winner){showLeagueWin();return;}
   const ps=G.league?G.players.map(p=>({n:p.name,s:p.score||0,x:p.dead})):[{n:G.name,s:G.score||0}];ps.sort((a,b)=>b.s-a.s);
   openModal('🏁 Sprint finished','<p>Score = net worth + '+CFG.sprintPts+' per championship point + '+fmt(CFG.sprintTitle)+' for the title.</p><table style="width:100%;font-size:13px;margin:8px 0">'+ps.map(p=>`<tr><td>${p.n}${p.x?' 💀':''}</td><td style="text-align:right"><strong>${p.s.toLocaleString()}</strong></td></tr>`).join('')+'</table><div class="ct" style="margin-top:10px">Best scores on this device</div>'+bestTable(),
     [{l:'New game',fn:()=>{clearSave();location.reload();},c:'bcon'}]);
@@ -1342,7 +1456,7 @@ const PERKS={negotiator:{n:'Negotiator',d:'buys cost 6% less'},hustler:{n:'Hustl
   veteran:{n:'Veteran',d:'start with a Club Racer signed'},insider:{n:'Insider',d:'know every hub\'s prices at the start, informant tips half price'},heir:{n:'Heir',d:'+$12,000 starting cash'}};
 // Hard starts with an $8,000 bank loan (this was the separate "Debt start" rule in v2).
 const DIFF={easy:{cash:22000,rival:-6,dis:0.06,loan:0.7,debt:0},normal:{cash:15000,rival:0,dis:0.12,loan:1,debt:0},hard:{cash:9000,rival:7,dis:0.16,loan:1.2,debt:8000}};
-const PERS=['st','wkWage','cash','rep','city','wh','inst','loans','consMiss','wkBase','greyOk','raceHist','champ','log','ap','raced','titles','won','driver','dnfWk','staff','perk','name','team','banned','dead','lrep','truck','hq','dxp','tier','seen','dcon','sharkDue','sharkLate','score','prev','ins','dev','devB','goal'];
+const PERS=['avatar','st','wkWage','cash','rep','city','wh','inst','loans','consMiss','wkBase','greyOk','raceHist','champ','log','ap','raced','titles','won','driver','dnfWk','staff','perk','name','team','banned','dead','lrep','truck','hq','dxp','tier','seen','dcon','sharkDue','sharkLate','score','prev','ins','dev','devB','goal'];
 // ins: insurance covers the asset loss. w: weight under the 'cover' rule, so the risk follows how you play.
 const DISASTERS=[
  {n:'🔥 Garage fire',d:'Every installed part loses 25% condition.',ins:1,w:()=>1,why:'always possible',f:()=>G.inst.forEach(i=>i.cond=Math.max(5,i.cond-25))},
@@ -1383,7 +1497,7 @@ function titleNeed(n){return noSeason()?Infinity:Math.round((SL()/CFG.raceEvery)
 function nw(p){return p.cash+p.wh.reduce((a,i)=>a+Math.round(getPrice(p.city,i.pid)*0.82*(i.cond/100)),0)-Object.values(p.loans).reduce((a,b)=>a+b,0);}
 function stash(){if(G.league){const o={};PERS.forEach(k=>o[k]=G[k]);G.players[G.cur]=o;}}
 function loadP(i){PERS.forEach(k=>G[k]=G.players[i][k]);G.cur=i;}
-function newPlayer(name,team,perk){
+function newPlayer(name,team,perk,avatar){
   const d=DF();
   if(!perkOpen(perk))perk='';
   // Every manager starts in a random hub, so each game opens with different prices, races and routes.
@@ -1391,14 +1505,14 @@ function newPlayer(name,team,perk){
   return{cash:d.cash+d.debt+(perk==='banker'?5000:0)+(perk==='heir'?12000:0),rep:50+(perk==='celebrity'?15:0),city:home,wh:[],
     inst:[{uid:uid(),pid:'suspension_road',cond:45,bp:7500,bc:home,bw:0},{uid:uid(),pid:'turbo',cond:55,bp:13500,bc:home,bw:0}],
     loans:{bank:d.debt,angel:0,consortium:0},consMiss:0,wkBase:350,greyOk:false,raceHist:[],champ:{pts:0,wins:0},log:[],ap:5,raced:0,titles:0,won:false,driver:perk==='veteran'?'club':'rookie',dnfWk:false,staff:{mech:0,eng:0},perk:perk||'',name,team,banned:0,dead:false,lrep:{},truck:0,hq:{},dxp:0,
-    tier:0,seen:{},dcon:perk==='veteran'?1+CFG.drvTerm:0,sharkDue:0,sharkLate:0,score:0,prev:'',ins:0,dev:0,devB:0,goal:null};
+    tier:0,seen:{},dcon:perk==='veteran'?1+CFG.drvTerm:0,sharkDue:0,sharkLate:0,score:0,prev:'',ins:0,dev:0,devB:0,goal:null,avatar:(avatar|0)%AVATARS.length};
 }
 // Price memory: G.seen[city][part] = [price, absolute week seen]. Recorded on arrival, each week in your current hub, and by informant tips.
 function see(cid,cat,obj){obj=obj||(G.seen=G.seen||{});const s=obj[cid]=obj[cid]||{};Object.keys(PARTS).forEach(pid=>{if(!cat||PARTS[pid].cat===cat)s[pid]=[getPrice(cid,pid),absWk()];});}
 function beginGame(c){
   const sprint=c.mode==='sprint',len=sprint?(+c.len||CFG.sprintLen):(+c.len||0);
-  G.mode=sprint?'sprint':len?c.mode:'endless';G.settings={seasonLen:len,diff:DIFF[c.diff]?c.diff:'normal',feat:c.feat||{}};G.reg='';G.ai=[];G.sat={};G.news='';if(F('rivals')||F('nemesis'))ensureAI();G.week=1;G.season=1;G.events=[];G.contracts=[];G.prices={};G.over=false;
-  G.league=c.players.length>1;G.players=c.players.map(p=>newPlayer(p.name,p.team,p.perk));G.cur=0;loadP(0);
+  G.mode=sprint?'sprint':len?c.mode:'endless';G.settings={seasonLen:len,diff:DIFF[c.diff]?c.diff:'normal',feat:c.feat||{},win:c.win||null,gp:Math.max(1,+c.gp||1)};G.gpSeed=Math.floor(Math.random()*32);G.winner='';G.final=null;G.reg='';G.ai=[];G.sat={};G.news='';if(F('rivals')||F('nemesis'))ensureAI();G.week=1;G.season=1;G.events=[];G.contracts=[];G.prices={};G.over=false;
+  G.league=c.players.length>1;G.players=c.players.map((p,i)=>newPlayer(p.name,p.team,p.perk,p.avatar!=null?p.avatar:i));ensureAI();G.cur=0;loadP(0);
   initPrices();rollStock();G.players.forEach(p=>{if(p.perk==='insider')Object.keys(CITIES).forEach(cid=>see(cid,'',p.seen));else see(p.city,'',p.seen);});
   rollWeather();genContracts();G.tab='market';
   addLog('Welcome, '+G.name+'! '+G.team+' HQ opened in '+CITIES[G.city].n+' '+CITIES[G.city].f+(G.league?' — league of '+G.players.length+' managers, each starting in a random hub':''),'');
@@ -1406,9 +1520,14 @@ function beginGame(c){
 }
 function setupPlayers(){
   const n=+document.getElementById('wn').value;let h='';
-  for(let i=0;i<n;i++)h+=`<div style="margin:8px 0;padding:8px;border:1px solid var(--border);border-radius:8px"><div style="font-size:11px;color:var(--dim)">${n>1?'Player '+(i+1):'Manager'}</div><input class="mi" id="pn${i}" placeholder="Manager name" maxlength="16"><input class="mi" id="pt${i}" placeholder="Team name" maxlength="20"><select class="mi" id="pp${i}">${Object.entries(PERKS).map(([k,v])=>{const a=ACH.find(x=>x.perk===k);return perkOpen(k)?`<option value="${k}">${v.n} — ${v.d}</option>`:`<option value="${k}" disabled>🔒 ${v.n} — ${a.d} to unlock</option>`;}).join('')}</select></div>`;
+  for(let i=0;i<n;i++)h+=`<div style="margin:8px 0;padding:8px;border:1px solid var(--border);border-radius:8px"><div style="font-size:11px;color:var(--dim)">${n>1?'Player '+(i+1):'Manager'}</div><input class="mi" id="pn${i}" placeholder="Manager name" maxlength="16"><input class="mi" id="pt${i}" placeholder="Team name" maxlength="20"><select class="mi" id="pp${i}">${Object.entries(PERKS).map(([k,v])=>{const a=ACH.find(x=>x.perk===k);return perkOpen(k)?`<option value="${k}">${v.n} — ${v.d}</option>`:`<option value="${k}" disabled>🔒 ${v.n} — ${a.d} to unlock</option>`;}).join('')}</select><label>Avatar</label>${avatarPicker('pa'+i,(i*4)%AVATARS.length)}</div>`;
   document.getElementById('wp').innerHTML=h;
+  const lg=document.getElementById('wleague'),online=document.getElementById('wn').style.display==='none';if(lg)lg.style.display=(n>1||online)?'block':'none';
 }
+// League rules from the setup screen: null = vanilla.
+function leagueCfg(){const g=id=>{const e=document.getElementById(id);return e?e.value:'';};if(g('wlr')!=='custom')return null;
+  return{titles:+g('wtitles')||0,wins:+g('wwins')||0,nw:+g('wnw')||0,rep:+g('wrep')||0,seasons:+g('wseasons')||0};}
+function leagueRulesToggle(){const c=document.getElementById('wlc');if(c)c.style.display=document.getElementById('wlr').value==='custom'?'grid':'none';}
 function showSetup(online){
   const sel=(id,opts,def)=>`<select class="mi" id="${id}">${opts.map(o=>`<option value="${o[0]}"${o[0]==def?' selected':''}>${o[1]}</option>`).join('')}</select>`;
   openModal(online?'🌐 Host an online game':'🏁 New Manager',`<div style="max-height:62vh;overflow:auto">${online?'<p class="gdim" style="margin-bottom:6px">Set the season exactly as in single player. Friends join from the lobby on the next screen.</p>':''}<label>Mode</label>${sel('wm',[['career','Career — win 2 titles'],['sprint','⏱ Sprint — one season, chase a high score'],['endless','♾ Endless']],'career')}
@@ -1417,17 +1536,31 @@ function showSetup(online){
   <label>Rules</label>${sel('wpre',[['full','Full — every advanced rule'],['classic','Classic — trading and racing only'],['custom','Custom']],'full').replace('<select','<select onchange="featPreset(this.value)"')}
   <details id="wadv" style="margin:6px 0"><summary style="cursor:pointer;font-size:12px;color:var(--dim)">Advanced: pick rules one by one (change any time in ⚙ Rules)</summary>
   <div style="margin:6px 0"><button class="bsm" type="button" onclick="featAll(true)">Select all</button> <button class="bsm" type="button" onclick="featAll(false)">Clear all</button></div>${featBoxes(true)}</details>
-  <div style="font-size:11px;color:var(--dim);margin-top:6px">🏅 Achievements unlocked: ${ACH.filter(a=>meta().ach[a.id]).length}/${ACH.length}. Best sprint: ${meta().best.length?meta().best[0].s.toLocaleString():'—'}</div>${online?'<label>You (host)</label><select class="mi" id="wn" style="display:none"><option value="1" selected>1</option></select>':'<label>Managers (local hot-seat league, up to 10)</label>'+sel('wn',Array.from({length:10},(_,i)=>[i+1,i+1]),1).replace('<select','<select onchange="setupPlayers()"')}<div id="wp"></div></div>`,[online?{l:'Open lobby',fn:startLobby,c:'bcon'}:{l:'Start',fn:startNewGame,c:'bcon'}]);
+  <div style="font-size:11px;color:var(--dim);margin-top:6px">🏅 Achievements unlocked: ${ACH.filter(a=>meta().ach[a.id]).length}/${ACH.length}. Best sprint: ${meta().best.length?meta().best[0].s.toLocaleString():'—'}</div>${online?leagueSetupHtml()+'<label>You (host)</label><select class="mi" id="wn" style="display:none"><option value="1" selected>1</option></select>':''+leagueSetupHtml()+'<label>Managers (local hot-seat league, up to 10)</label>'+sel('wn',Array.from({length:10},(_,i)=>[i+1,i+1]),1).replace('<select','<select onchange="setupPlayers()"')}<div id="wp"></div></div>`,[online?{l:'Open lobby',fn:startLobby,c:'bcon'}:{l:'Start',fn:startNewGame,c:'bcon'}]);
   setupPlayers();
 }
+function leagueSetupHtml(){const o=(id,opts,d)=>`<select class="mi" id="${id}">${opts.map(x=>`<option value="${x[0]}"${x[0]==d?' selected':''}>${x[1]}</option>`).join('')}</select>`;
+  return `<div id="wleague" class="lgset" style="display:none"><div class="ct">League rules</div>
+    <label>Rules</label>${o('wlr',[['vanilla','Vanilla — standard rules (career: first to '+CFG.careerTitles+' titles)'],['custom','Custom — set your own goals']],'vanilla').replace('<select','<select onchange="leagueRulesToggle()"')}
+    <div id="wlc" class="lgc" style="display:none">
+      <div><label>Titles to win</label>${o('wtitles',[[0,'— off'],[1,1],[2,2],[3,3],[5,5]],2)}</div>
+      <div><label>Race wins to win</label>${o('wwins',[[0,'— off'],[5,5],[10,10],[20,20],[30,30]],0)}</div>
+      <div><label>Net worth to win</label>${o('wnw',[[0,'— off'],[100000,'$100,000'],[250000,'$250,000'],[500000,'$500,000'],[1000000,'$1,000,000']],0)}</div>
+      <div><label>Reputation to win</label>${o('wrep',[[0,'— off'],[70,70],[85,85],[100,100]],0)}</div>
+      <div><label>Game length</label>${o('wseasons',[[0,'Until someone wins'],[1,'1 season'],[2,'2 seasons'],[3,'3 seasons'],[5,'5 seasons']],0)}</div>
+      <p class="gdim">The first manager to reach any goal you switch on wins. With a game length set, the manager with the most titles (then race wins, then net worth) wins when it runs out.</p></div>
+    <label>League Grand Prix</label>${o('wgp',[[1,'Every week'],[2,'Every 2 weeks'],[3,'Every 3 weeks']],1)}
+    <p class="gdim">Every manager races the League GP automatically, wherever they are. It is the only race that scores championship points against each other and the AI teams.</p></div>`;}
 function startNewGame(){
   const g=id=>document.getElementById(id).value,n=+g('wn'),ps=[];
-  for(let i=0;i<n;i++)ps.push({name:g('pn'+i).trim()||'Manager '+(i+1),team:g('pt'+i).trim()||'Team '+(i+1),perk:g('pp'+i)});
-  const feat={};FEATS.forEach(f=>feat[f[0]]=document.getElementById('f_'+f[0]).checked);gameReady=true;hideTitle();beginGame({mode:g('wm'),diff:g('wd'),len:+g('wl'),players:ps,feat});
+  for(let i=0;i<n;i++)ps.push({name:g('pn'+i).trim()||'Manager '+(i+1),team:g('pt'+i).trim()||'Team '+(i+1),perk:g('pp'+i),avatar:avVal('pa'+i,i)});
+  const feat={};FEATS.forEach(f=>feat[f[0]]=document.getElementById('f_'+f[0]).checked);gameReady=true;hideTitle();beginGame({mode:g('wm'),diff:g('wd'),len:+g('wl'),players:ps,feat,win:n>1?leagueCfg():null,gp:n>1?+g('wgp'):1});
 }
 function showLeague(){
-  stash();const rows=(G.league?G.players:[G]).map(p=>({n:p.name,t:p.team,nw:nw(p),pts:p.champ.pts,w:p.champ.wins,ti:p.titles,x:p.dead})).concat(F('rivals')?(G.ai||[]).map(a=>({n:a.n,t:'AI team',nw:a.nw,pts:a.pts,w:0,ti:0})):[]).sort((a,b)=>b.pts-a.pts||b.nw-a.nw);
-  openModal('👥 Standings — '+(noSeason()?'Week '+G.week+' (no season end)':'Season '+G.season+', week '+G.week+'/'+SL()),'<div style="max-height:60vh;overflow:auto"><table style="width:100%;font-size:12px"><tr style="color:var(--dim);text-align:left"><th>#</th><th>Manager</th><th>Pts</th><th>Wins</th><th>Titles</th><th>Net worth</th></tr>'+rows.map((r,i)=>`<tr><td>${i+1}</td><td>${r.n}<br><span style="color:var(--dim);font-size:10px">${r.t}${r.x?' · 💀 bankrupt':''}</span></td><td>${r.pts}</td><td>${r.w}</td><td>${r.ti}</td><td>${fmt(r.nw)}</td></tr>`).join('')+'</table></div>',[]);
+  const s=standings(),me=G.league?G.cur:0;
+  openModal('👥 Standings — '+(noSeason()?'Week '+G.week+' (no season end)':'Season '+G.season+', week '+G.week+'/'+SL()),'<div style="max-height:62vh;overflow:auto">'+(G.league?'<p class="gdim">Goal: '+goalText(leagueGoals())+' · League GP every '+(gpEvery()>1?gpEvery()+' weeks':'week')+'</p>':'')+standTable(s,me)
+    +(G.league?'<div class="ct" style="margin-top:10px">Managers</div><table class="stand"><tr><th></th><th>Manager</th><th>Titles</th><th>Career wins</th><th>Net worth</th><th>Rep</th></tr>'+G.players.map(p=>'<tr><td>'+avatarImg(p.avatar,22)+'</td><td>'+p.name+'<br><span class="gdim">'+p.team+(p.dead?' · 💀 bankrupt':'')+'</span></td><td>'+p.titles+'</td><td>'+p.champ.wins+'</td><td>'+fmt(nw(p))+'</td><td>'+p.rep+'</td></tr>').join('')+'</table>':'')+'</div>',[]);
+  document.getElementById('mb').classList.add('wide');
 }
 // Several paths (closing a modal, re-rendering) can ask for the next turn at once; only one may run.
 let passQ=false;
@@ -1438,8 +1571,11 @@ function passTurn(){
   if(G.players.every(p=>p.dead)){openModal('💀 League over','<p>Every manager has gone bankrupt.</p>',[{l:'New game',fn:()=>{clearSave();location.reload();},c:'bcon'}]);return;}const n=G.players.length;let nx=-1;
   for(let k=1;k<=n;k++){const j=(G.cur+k)%n;if(G.players[j].ap>0&&!G.players[j].dead){nx=j;break;}}
   const was=NET.on&&G.netSeats&&G.netSeats[G.cur]===NET.id;
-  if(nx<0){endWeek();loadP(Math.max(0,G.players.findIndex(p=>!p.dead)));render();if(was)netSendNow();
-    if(G.net){netUI();return;}openModal('📅 Week '+G.week+' begins','<p>All managers finished. Pass the device to <strong>'+G.name+'</strong> ('+G.team+').</p>',[{l:'Ready',c:'bcon'}]);return;}
+  if(nx<0){const gp0=G.gpLast&&G.gpLast.stamp;endWeek();loadP(Math.max(0,G.players.findIndex(p=>!p.dead)));render();if(was)netSendNow();if(G.over)return;
+    const gpNew=G.gpLast&&G.gpLast.stamp!==gp0;
+    if(G.net){if(gpNew)showGP();netUI();return;}
+    if(gpNew){showGP();document.getElementById('mbd').insertAdjacentHTML('afterbegin','<p class="callout" style="margin-bottom:8px">📅 Week '+G.week+' begins. Pass the device to <strong>'+G.name+'</strong> ('+G.team+').</p>');return;}
+    openModal('📅 Week '+G.week+' begins','<p>All managers finished. Pass the device to <strong>'+G.name+'</strong> ('+G.team+').</p>',[{l:'Ready',c:'bcon'}]);return;}
   loadP(nx);render();if(was)netSendNow();
   if(G.net){toast('▶ '+G.name+' ('+G.team+') is up','i');netUI();return;}
   openModal('Pass the device','<p>Next manager: <strong>'+G.name+'</strong> ('+G.team+')</p>',[{l:'Ready',c:'bcon'}]);
@@ -1571,13 +1707,13 @@ function goalFail(){G.goal=null;G.rep=Math.max(0,G.rep-6);addLog('📰 Sponsor u
 function newReg(){if(!F('regs')){G.reg='';return;}const r=['noaero','power','safety'];G.reg=r[Math.floor(Math.random()*3)];addLog('📜 New regulations: '+regName(),'ev');toast('📜 '+regName(),'w',6000);}
 function regName(){return {noaero:'Aero cap — downforce counts half',power:'Power boost — Speed +10%',safety:'Safety mandate — +5 finish chance'}[G.reg]||'';}
 function regTxt(){return F('regs')&&G.reg?' · 📜 '+regName():'';}
-function ensureAI(){if(!G.ai||!G.ai.length)G.ai=['Apex Racing','Vortex GP','Silverline','Kestrel Motors','Ironclad'].map(n=>({n,pts:0,nw:25000+Math.round(Math.random()*25000),str:0.5+Math.random()}));
+function ensureAI(){if(!G.ai||!G.ai.length)G.ai=['Apex Racing','Vortex GP','Silverline','Kestrel Motors','Ironclad'].map(n=>({n,pts:0,wins:0,nw:25000+Math.round(Math.random()*25000),str:0.5+Math.random()}));
   G.ai.forEach((a,i)=>{if(!a.spec)a.spec=NEM_DISC[i%NEM_DISC.length];if(a.edge==null)a.edge=0;});}
 // Nemesis teams ('nemesis' rule): each AI team specialises in one discipline. Beating it there makes it invest (+1 edge, up to CFG.nemMax); losing to it lets it relax.
 const NEM_DISC=['formula','endurance','rally','touring','gt'];
 function nemOf(disc){if(!F('nemesis'))return null;ensureAI();return G.ai.find(a=>a.spec===disc)||null;}
 function nemResult(a,ahead){if(ahead){a.edge=Math.min(CFG.nemMax,a.edge+1);G.rep=Math.min(100,G.rep+2);addLog('⚔ You beat '+a.n+' on their own ground (+2 rep). They are investing to hit back.','ev');}else a.edge=Math.max(0,a.edge-1);}
-function aiWeek(){ensureAI();const cs=Object.keys(CITIES),ps=Object.keys(PARTS);G.ai.forEach(a=>{a.nw=Math.round(a.nw*(1+0.01+Math.random()*0.04*a.str));if(Math.random()<0.5)a.pts+=Math.round([25,18,15,12,10,8,6,4][Math.floor(Math.random()*8)]*(0.6+a.str*0.6));const c=cs[Math.floor(Math.random()*cs.length)],p=ps[Math.floor(Math.random()*ps.length)];G.prices[c][p]=Math.round(G.prices[c][p]*(1+(Math.random()-0.5)*0.12));});}
+function aiWeek(){ensureAI();const cs=Object.keys(CITIES),ps=Object.keys(PARTS);G.ai.forEach(a=>{a.nw=Math.round(a.nw*(1+0.01+Math.random()*0.04*a.str));const c=cs[Math.floor(Math.random()*cs.length)],p=ps[Math.floor(Math.random()*ps.length)];G.prices[c][p]=Math.round(G.prices[c][p]*(1+(Math.random()-0.5)*0.12));});}
 function buyHQ(k){const b=HQB[k];if(G.hq[k])return;if(G.cash<b.cost){toast('Need '+fmt(b.cost),'d');return;}G.cash-=b.cost;G.hq[k]=true;toast('Built '+b.n,'s');render();}
 function buyTruck(){const lv=G.truck||0;if(lv>=3)return;const c=15000*(lv+1);if(G.cash<c){toast('Need '+fmt(c),'d');return;}G.cash-=c;G.truck=lv+1;toast('Truck fleet Lv '+G.truck,'s');render();}
 // Next-season R&D ('dev' rule): money and AP spent this season become pace next season only, the trade-off between this year's car and next year's.
@@ -1716,9 +1852,10 @@ function worldWeek(){
   updatePrices();rollStock();satWeek();
   G.events=G.events.filter(e=>{e.dur--;return e.dur>0;});
   if(Math.random()<0.3)fireEvent();
-  rollWeather();if(F('rivals'))aiWeek();G.week++;
+  aiRaceWeek();rollWeather();if(F('rivals'))aiWeek();G.week++;
   G.contracts=G.contracts.filter(c=>c.due>=absWk());if(genContracts())toast('📦 New delivery contracts available','i');
-  let o=0;if(G.week>SL()){o=G.season;G.week=1;G.season++;newReg();(G.ai||[]).forEach(a=>a.pts=0);}
+  let o=0;if(G.week>SL()){G.final=standings().map(x=>({n:x.n,t:x.t,av:x.av,pts:x.pts,wins:x.wins,ai:!!x.ai,pi:x.pi}));if(G.final[0])addLog('🏆 Season '+G.season+' champion: '+G.final[0].n+' ('+G.final[0].pts+' pts)','ev');
+    o=G.season;G.week=1;G.season++;newReg();(G.ai||[]).forEach(a=>{a.pts=0;a.wins=0;});}
   if(F('news'))G.news=headline();
   addLog('--- Week '+G.week+' begins ---','');return o;
 }
@@ -1726,12 +1863,13 @@ function endWeek(){
   if(G.over){showOver();return;}
   if(!G.league){if(!playerWeek())return;const o=worldWeek();see(G.city);if(o)seasonEnd(o);else maybeStory();
     if(o&&G.mode==='sprint'){G.over=true;render();showOver();return;}render();return;}
-  stash();
+  stash();runLeagueGP();stash();
   for(let i=0;i<G.players.length;i++){loadP(i);if(!G.dead)playerWeek();stash();}
   const o=worldWeek();
   for(let i=0;i<G.players.length;i++){loadP(i);see(G.city);if(o&&!G.dead)seasonEnd(o);stash();}
   if(o)toast('🏁 Season '+o+' finished — see 👥 League','w',7000);
   if(o&&G.mode==='sprint')G.over=true;
+  leagueWinCheck(!!o);
   loadP(0);render();if(G.over)showOver();
 }
 
@@ -1809,7 +1947,7 @@ function showRaceResult(race,result){
     <div class="rg">
       <div class="rs"><div class="rv" style="color:${pc}">${result.pos==='DNF'?'DNF':'P'+result.pos}</div><div class="rl">Position</div></div>
       <div class="rs"><div class="rv" style="color:var(--success)">${fmt(result.prize)}</div><div class="rl">Prize Money</div></div>
-      <div class="rs"><div class="rv" style="color:var(--drag)">${result.pts}pts</div><div class="rl">Champ Points</div></div>
+      <div class="rs"><div class="rv" style="color:var(--drag)">${result.champ===false?'—':result.pts+'pts'}</div><div class="rl">Champ Points</div></div>
     </div>
     ${result.note?`<div style="font-size:12px;margin-top:10px;text-align:center">📻 ${result.note}</div>`:''}
     ${raceWhy(result)?`<div style="font-size:12px;margin-top:10px;text-align:center;font-variant-numeric:tabular-nums">${raceWhy(result)}</div>`:''}
@@ -1822,6 +1960,7 @@ function showRaceResult(race,result){
 // ══════════ RENDERS ══════════
 function renderHeader(){
   const c=CITIES[G.city];
+  const hav=document.getElementById('hav');if(hav)hav.innerHTML=avatarImg(G.avatar,22);
   document.getElementById('hfl').textContent=c.f;
   document.getElementById('hct').textContent=(G.league?G.name+' · ':'')+c.n;document.getElementById('logo-sub').textContent=G.team;
   if(FX.last.cashRaw!=null&&FX.last.cashRaw!==G.cash&&!NET.applying)fxMoney(G.cash-FX.last.cashRaw);FX.last.cashRaw=G.cash;
@@ -2183,7 +2322,7 @@ function renderRace(){
         ${st.rel<55?'<div style="color:var(--danger);font-size:11px;margin-top:8px">⚠ Low reliability warning — extreme DNF breakdown hazard. Replace worn parts!</div>':''}
       </div>
       <div class="rcp">
-        <div class="ct" style="margin-bottom:10px">Season ${G.season}${F('tiers')?' · '+tierOf().n:''} · ${G.mode==='endless'?'♾ Endless':G.mode==='sprint'?'⏱ Sprint — final week '+SL():'Career '+G.titles+'/'+CFG.careerTitles+' titles'} · ${noSeason()?'no championship':'title needs '+titlePts()+' pts'}${regTxt()}${G.goal?' · 📰 Sponsor wants a podium: '+G.goal.left+' race'+(G.goal.left>1?'s':'')+' left, by '+wkLabel(G.goal.until):''}</div>
+        <div class="ct" style="margin-bottom:10px">Season ${G.season}${F('tiers')?' · '+tierOf().n:''} · ${G.mode==='endless'?'♾ Endless':G.mode==='sprint'?'⏱ Sprint — final week '+SL():'Career '+G.titles+'/'+CFG.careerTitles+' titles'} · ${noSeason()?'no championship':champLine()}${regTxt()}${G.goal?' · 📰 Sponsor wants a podium: '+G.goal.left+' race'+(G.goal.left>1?'s':'')+' left, by '+wkLabel(G.goal.until):''}</div>
         <div style="display:flex;gap:18px;font-family:var(--font-m)">
           <div><div style="font-size:9px;color:var(--dim)">POINTS</div><div style="font-size:24px;color:var(--drag)">${G.champ.pts}</div></div>
           <div><div style="font-size:9px;color:var(--dim)">WINS</div><div style="font-size:24px;color:var(--gold)">${G.champ.wins}</div></div>
@@ -2192,6 +2331,7 @@ function renderRace(){
         </div>
       </div>
     </div>
+    ${G.league?gpBox():''}
     <div class="ct">Available Competitions in ${city.n}</div>
     ${races.length===0?`<div class="empty"><div class="eico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v16M4 4h12l-2 4 2 4H4"/></svg></div>No sanctioned events held in this hub. Travel to an active circuit.</div>`:''}
     <div class="rlist">${races.map(race=>{
@@ -2423,7 +2563,8 @@ terms:()=>gT(['Term','Meaning'],[
  ['Part fit','Bonus pace for parts that suit a discipline (e.g. gravel tyres in rally).'],
  ['Reputation','0–100. Brings sponsors and warehouse space. Rises with podiums and contracts, falls with bad results and scandals.'],
  ['Net worth','Cash + warehouse value − debts. Below −$50,000 = bankrupt.'],
- ['Title target','Championship points needed to win the season (now '+(noSeason()?'none — endless':titleNeed(G.season))+').'],
+ ['Championship','The season table of every team, AI teams included. The team on top at the end of the season is champion.'],
+ ['League Grand Prix','In a league, the mandatory weekly race all managers take part in, wherever they are. The only race that scores championship points in a league.'],
  ['Grey market','Contraband parts sold in some hubs after your first win. Strong but risky at scrutineering.'],
  ['Black market','Cheap copies of every legal part in grey-market hubs. Worn, and risky to race or sell.'],
  ['Delivery contract','An order for parts at a hub by a deadline. Pays well over market.'],
@@ -2467,12 +2608,14 @@ racing:()=>gH('How a race is decided')
   ['Extras','Setup and strategy, race-day calls, HQ, next-season R&D, regulations, driver traits (when those rules are on)'],
   ['Luck','±15']])
  +gP('The <strong>field</strong> = the race\'s field strength + the season or series boost + difficulty (Easy −6, Hard +7) + the nemesis team\'s edge + luck (±14). The race breakdown after each race shows every number.')
- +gT(['Your pace minus the field','Result','Points'],[['more than +18','1st','25'],['+8 to +18','2nd','18'],['0 to +8','3rd','15'],['−10 to 0','4th','12'],['−20 to −10','6th','8'],['below −20','10th','1']])
+ +gP('Every race runs a grid of '+CFG.grid+' cars: you, the AI teams and guest teams. Each car gets its pace plus luck, cars can retire, and you finish where your score ranks. Points follow the official system:')
+ +gT(['Finish','P1','P2','P3','P4','P5','P6','P7','P8','P9','P10'],[['Points',...PTS]])
+ +gP('Drag races are head-to-head duels against one quick rival: '+CFG.dragWinPts+' points for the win, none for the loss.')
  +gL(['<strong>Prize</strong>: the race\'s prize for your position, × the prize multiplier (+8% per season up to +40%, or the series multiplier with the promotion ladder).','<strong>Reputation</strong>: +8 for a podium, +3 for 4th–6th, −2 further back.','<strong>Finish chance</strong> = car Reliability + the discipline\'s modifier + (driver skill − 50) ÷ 10 + extras, kept between 5% and 99%. Before the race, the car may fail: DNF chance = (100 − finish chance) × 0.45%, at least 2%. At 60% finish chance that\'s an 18% DNF risk.','<strong>Schedule</strong>: each event runs every '+CFG.raceEvery+' weeks; you can race once a week. Entry costs 1 AP and '+gPc(CFG.raceFeePct)+' of the winner\'s prize.','<strong>Weather</strong> is rolled for every race at the start of the week (25% wet; drag is always dry).','<strong>Rivals</strong> get faster every season (+'+CFG.rivalSeasonBoost+' per season, capped at +'+CFG.rivalCap+'), unless the promotion ladder is on.'])
  +gH('Disciplines')
  +gT(['Discipline','Speed weight','Aero weight','Finish chance','Parts that help most','Tip'],Object.entries(DISC).map(([k,d])=>[discE(k),'×'+d.spd,'×'+d.aero,gSg(d.rel),Object.entries(d.fit).sort((a,b)=>b[1]-a[1]).map(([p,v])=>PARTS[p].name+' '+gSg(v)).join(', '),d.tip]))
  +gH('Championship')
- +gL(['Points from every race add up over the season. Reach the title target by the last week to be champion (+10 reputation).','Target = (season length ÷ '+CFG.raceEvery+') × 25 × 0.42, +'+CFG.titleStep+' each later season. '+(noSeason()?'This game is endless, so there is no championship.':'This season: <strong>'+titleNeed(G.season)+' points</strong>.')])
+ +gL(['The championship is a table of every team: you, the other managers in a league, and the five AI teams. AI teams race every week: in your race when they are on its grid, otherwise in a race of their own, scoring the same points.','Whoever tops the standings when the season ends is champion (+10 reputation, +1 title). '+(noSeason()?'This game is endless, so there is no championship.':'Right now: '+champLine().replace(/<[^>]+>/g,'')+'.'),'In a league, every manager races the <strong>League Grand Prix</strong> automatically each week (or every 2–3 weeks), wherever they are. It is free, takes no AP, and is the only race that scores championship points; other races pay prize money only.'])
  +gH('Scrutineering')
  +gL(['Grey-market parts: '+gPc(CFG.fiaChance)+' chance per race of a DSQ ('+gPc(CFG.fiaChance/2)+' with customs on).','Black-market copies: '+gPc(CFG.bmDsq)+' per fitted copy per race. The pre-race checklist shows your total.'])
  +gH('Optional race rules')
@@ -2654,8 +2797,9 @@ function carHtml(k,disc,col,me){const a=CAR_SHEET.a[k];
 function fxRace(race,result,done){
   const disc=race.disc,drag=disc==='drag',wet=G.wx[race.id]==='wet',snow=/snow/i.test(race.id+race.n);
   const cid=Object.keys(RACES).find(c=>RACES[c].includes(race)),desert=cid==='dakar'||cid==='dubai'||cid==='las_vegas';
-  const N=drag?2:8,mePos=result.pos==='DNF'?null:drag?(result.pos===1?1:2):Math.min(N,result.pos>=10?N:result.pos>=6?6:result.pos);
-  const ai=rivalNames(N-1),cols=shuffle(['#4895ef','#57cc99','#ffd60a','#9b5de5','#e63946','#8a8f98','#2ec4b6']);
+  const F0=result.field&&result.field.length?result.field:null;
+  const N=F0?F0.length:(drag?2:8),mePos=result.pos==='DNF'?null:F0?result.pos:drag?(result.pos===1?1:2):Math.min(N,result.pos>=10?N:result.pos>=6?6:result.pos);
+  const ai=F0?F0.filter(c=>!c.me).map(c=>c.n):rivalNames(N-1),cols=shuffle(['#4895ef','#57cc99','#ffd60a','#9b5de5','#e63946','#8a8f98','#2ec4b6']);
   const order=[];let r=0;for(let p=1;p<=N;p++){if(p===mePos)order.push('me');else if(r<ai.length)order.push(r++);}if(mePos==null)order.push('me');
   const models=carPick(disc,N);
   const cars=order.map((who,fin)=>{const me=who==='me',src=me?models[N-1]:models[who];
@@ -2683,7 +2827,7 @@ function fxRace(race,result,done){
       const lb=document.getElementById('rlap');if(lb)lb.textContent=raceStage(disc,k);
       const rk=document.getElementById('rk');if(rk){const s=lanes.slice().sort((a,b)=>(b.done-a.done)||(a.done&&b.done?a.fin-b.fin:b.x-a.x));
         const h=drag?(k<1?s.map(c=>`<div class="${c.me?'me':''}">${c.name}</div>`).join(''):`<div class="${mePos===1?'me':''}">${mePos===1?'🏆 You win the round':'❌ Knocked out'} · classified P${result.pos==='DNF'?'—':result.pos}</div>`)
-          :s.slice(0,8).map((c,i)=>`<div class="${c.me?'me':''}">P${i+1} ${c.name}</div>`).join('');
+          :s.slice(0,10).map((c,i)=>`<div class="${c.me?'me':''}">P${i+1} ${c.name}</div>`).join('');
         if(rk.dataset.h!==h){rk.dataset.h=h;rk.innerHTML=h;}}
       if(k<1)requestAnimationFrame(tick);else setTimeout(done,FX.rskip?0:800);};
     requestAnimationFrame(tick);}
@@ -2740,7 +2884,7 @@ function netRx(peer,raw){let m;try{m=JSON.parse(raw);}catch(e){return;}
   if(m.t==='part'){const c=NET.chunks[m.k]=NET.chunks[m.k]||[];c[m.i]=m.d;if(c.filter(x=>x!=null).length===m.n){delete NET.chunks[m.k];netRx(peer,c.join(''));}return;}
   if(m.t==='chat'){toast('💬 '+m.from+': '+m.msg,'i',6000);fxSnd('click');if(NET.host)netCast(m,peer);return;}
   if(NET.host){
-    if(m.t==='hello'){peer.id=m.id;peer.name=m.name||'Guest';peer.team=m.team;peer.perk=m.perk;
+    if(m.t==='hello'){peer.id=m.id;peer.name=m.name||'Guest';peer.team=m.team;peer.perk=m.perk;peer.av=m.avatar|0;
       if(G.net&&G.netSeats){let seat=G.netSeats.indexOf(m.id);
         // a returning player who lost their device id can reclaim a disconnected seat with the same manager name
         if(seat<0){seat=G.players.findIndex((p,i)=>p.name===m.name&&!NET.peers.some(q=>q.open&&q.id===G.netSeats[i]&&q!==peer));if(seat>0)G.netSeats[seat]=m.id;}
@@ -2753,12 +2897,13 @@ function netRx(peer,raw){let m;try{m=JSON.parse(raw);}catch(e){return;}
   if(m.t==='full'){toast('That game has no free seat for you','d',6000);return;}
   if(m.t==='state')netApply(m.s);}
 // Apply a received game: keep this device's own view settings, re-render, then show whose turn it is.
-function netApply(s){const keep={tab:G.tab,fcat:G.fcat,msort:G.msort,mdesc:G.mdesc,sortV:G.sortV},w0=G.week,c0=G.cur,first=!NET.on;
+function netApply(s){const keep={tab:G.tab,fcat:G.fcat,msort:G.msort,mdesc:G.mdesc,sortV:G.sortV},w0=G.week,c0=G.cur,first=!NET.on,gp0=G.gpLast&&G.gpLast.stamp;
   NET.applying=true;Object.assign(G,s,keep);G.forced=myTurnOf(s)?s.forced:false;NET.on=true;gameReady=true;if(titleOpen())hideTitle();
   if(first){const mo=document.getElementById('mo');if(mo.classList.contains('open'))closeModalQuiet();}
   render();NET.applying=false;netUI();
   if(w0!==G.week&&!first&&FX.on)fxOverlay(`<div class="wkcard"><div class="wkstripe"></div><div class="wkn">WEEK <span>${G.week}</span></div><div class="wks">${G.name} · ${G.team} to play</div></div>`,1600);
   if((c0!==G.cur||first)&&myTurn()){fxSnd('win');toast('🟢 Your turn, '+G.name+'!','s',5000);}
+  if(!first&&G.gpLast&&G.gpLast.stamp!==gp0&&!G.over)showGP();
   if(G.over)showOver();}
 function myTurnOf(s){return s.netSeats&&s.netSeats[s.cur]===NET.id;}
 function closeModalQuiet(){document.getElementById('mo').classList.remove('open');document.getElementById('mb').classList.remove('wide');}
@@ -2771,7 +2916,7 @@ function netUI(){if(!FX.on)return;let b=document.getElementById('netbar');
   const live=NET.peers.filter(p=>p.open).length,mine=myTurn(),cur=G.players&&G.players[G.cur];
   const curOn=!G.netSeats||G.netSeats[G.cur]===NET.id||NET.host&&NET.peers.some(p=>p.open&&p.id===G.netSeats[G.cur])||!NET.host;
   document.body.classList.toggle('spect',NET.on&&!mine);
-  b.className='on';b.innerHTML=`<span class="dot" style="${live?'':'background:var(--danger)'}"></span><span>${NET.on?(mine?'<strong style="color:var(--accent)">Your turn</strong>':'Watching <strong>'+(cur?cur.name:'')+'</strong>')+' · ':''}${NET.host?'Hosting · '+live+' connected':live?'Connected to host':'Not connected'}</span>
+  b.className='on';b.innerHTML=`${cur?avatarImg(cur.avatar,20):''}<span class="dot" style="${live?'':'background:var(--danger)'}"></span><span>${NET.on?(mine?'<strong style="color:var(--accent)">Your turn</strong>':'Watching <strong>'+(cur?cur.name:'')+'</strong>')+' · ':''}${NET.host?'Hosting · '+live+' connected':live?'Connected to host':'Not connected'}</span>
     <button class="bsm" onclick="netChat()">💬 Chat</button>${NET.host?'<button class="bsm" onclick="showLobby()">👥 Lobby</button>':''}${NET.host&&NET.on&&!mine&&!curOn?'<button class="bsm bssp" onclick="netSkip()">⏭ Skip turn</button>':''}${!NET.host&&!live?'<button class="bsm bins" onclick="showJoin()">Reconnect</button>':''}`;}
 function netChat(){const msg=prompt('Message to everyone:');if(!msg)return;const m={t:'chat',from:G.netSeats?(G.players[G.netSeats.indexOf(NET.id)]||{}).name||'Me':NET.me0&&NET.me0.name,msg:msg.slice(0,200)};
   if(NET.host)netCast(m);else NET.peers.forEach(p=>netTx(p,m));toast('💬 You: '+m.msg,'i');}
@@ -2779,17 +2924,17 @@ function netSkip(){if(!NET.host)return;addLog('⏭ The host skipped '+G.name+'\'
 // ── host: setup → lobby → start ──
 function showHostSetup(){if(!netOk()){toast('This browser does not support online play','d');return;}showSetup(true);}
 function startLobby(){const g=id=>document.getElementById(id).value,feat={};FEATS.forEach(f=>feat[f[0]]=document.getElementById('f_'+f[0]).checked);
-  NET.cfg={mode:g('wm'),diff:g('wd'),len:+g('wl'),feat};NET.me0={name:g('pn0').trim()||'Host',team:g('pt0').trim()||'Host Team',perk:g('pp0')};
+  NET.cfg={mode:g('wm'),diff:g('wd'),len:+g('wl'),feat,win:leagueCfg(),gp:+g('wgp')||1};NET.me0={name:g('pn0').trim()||'Host',team:g('pt0').trim()||'Host Team',perk:g('pp0'),avatar:avVal('pa0',0)};
   NET.host=true;NET.on=false;NET.peers=[];NET.inv=null;showLobby();netUI();}
 function cfgTxt(c){return (c.mode==='career'?'Career':c.mode==='sprint'?'Sprint':'Endless')+' · '+c.diff+' · '+(c.len?c.len+'-week seasons':'no seasons')+' · '+Object.values(c.feat).filter(Boolean).length+'/'+FEATS.length+' rules';}
 function netLobbyCast(){const list=[NET.me0.name+' ('+NET.me0.team+') — host'].concat(NET.peers.filter(p=>p.id&&p.open).map(p=>p.name+' ('+(p.team||'')+')'));
   netCast({t:'lobby',list,cfg:NET.cfg?cfgTxt(NET.cfg):''});if(document.getElementById('lobbyl'))showLobby();}
 function showLobby(){const started=!!(G.net&&NET.on);
-  const rows=started?G.players.map((p,i)=>{const id=G.netSeats[i],me=id===NET.id,on=me||NET.peers.some(q=>q.open&&q.id===id);return`<li><span>${p.name} <span class="gdim">${p.team}</span>${i===G.cur?' · ▶ playing':''}</span><span style="color:${on?'var(--success)':'var(--danger)'}">${me?'you (host)':on?'connected':'offline'}</span></li>`;}).join('')
-    :`<li><span>${NET.me0.name} <span class="gdim">${NET.me0.team}</span></span><span class="gon">host</span></li>`+NET.peers.filter(p=>p.id).map(p=>`<li><span>${p.name} <span class="gdim">${p.team||''}</span></span><span style="color:${p.open?'var(--success)':'var(--danger)'}">${p.open?'ready':'left'}</span></li>`).join('');
+  const rows=started?G.players.map((p,i)=>{const id=G.netSeats[i],me=id===NET.id,on=me||NET.peers.some(q=>q.open&&q.id===id);return`<li><span>${avatarImg(p.avatar,20)} ${p.name} <span class="gdim">${p.team}</span>${i===G.cur?' · ▶ playing':''}</span><span style="color:${on?'var(--success)':'var(--danger)'}">${me?'you (host)':on?'connected':'offline'}</span></li>`;}).join('')
+    :`<li><span>${avatarImg(NET.me0.avatar,20)} ${NET.me0.name} <span class="gdim">${NET.me0.team}</span></span><span class="gon">host</span></li>`+NET.peers.filter(p=>p.id).map(p=>`<li><span>${avatarImg(p.av,20)} ${p.name} <span class="gdim">${p.team||''}</span></span><span style="color:${p.open?'var(--success)':'var(--danger)'}">${p.open?'ready':'left'}</span></li>`).join('');
   const inv=NET.inv;
   openModal('🌐 Online game — '+(started?'in progress':'lobby'),`<div style="max-height:66vh;overflow:auto">
-    <div class="gdim" style="margin-bottom:6px">${started?cfgTxt({mode:G.mode==='sprint'?'sprint':G.mode,diff:G.settings.diff,len:G.settings.seasonLen,feat:G.settings.feat}):cfgTxt(NET.cfg)}</div>
+    <div class="gdim" style="margin-bottom:6px">${(started?G.settings.win:NET.cfg.win)!==undefined?'Goal: '+goalText(started?leagueGoals():(NET.cfg.win||(NET.cfg.mode==='career'?{titles:CFG.careerTitles}:{})))+' · ':''}${started?cfgTxt({mode:G.mode==='sprint'?'sprint':G.mode,diff:G.settings.diff,len:G.settings.seasonLen,feat:G.settings.feat}):cfgTxt(NET.cfg)}</div>
     <ul class="lobby" id="lobbyl">${rows}</ul>
     <div class="gh" style="margin-top:12px">Invite a player</div>
     <p class="gdim">1. Create an invite and send it to one friend (Discord, WhatsApp…). 2. They paste it in <em>Join online game</em> and send you their reply. 3. Paste the reply here. One invite per friend.${started?' A player who dropped out rejoins the same way.':''}</p>
@@ -2805,7 +2950,7 @@ async function netGotReply(){const v=document.getElementById('netrep').value;try
 function netCopy(t){try{navigator.clipboard.writeText(t);toast('Copied','s');}catch(e){toast('Select the code and copy it','w');}}
 function netStart(){const guests=NET.peers.filter(p=>p.id&&p.open);if(!guests.length){toast('Invite at least one player first','w');setTimeout(showLobby,0);return;}
   const c=NET.cfg;gameReady=true;hideTitle();
-  beginGame({mode:c.mode,diff:c.diff,len:c.len,feat:c.feat,players:[NET.me0].concat(guests.map(p=>({name:p.name,team:p.team||p.name+' Racing',perk:p.perk||''})))});
+  beginGame({mode:c.mode,diff:c.diff,len:c.len,feat:c.feat,win:c.win,gp:c.gp,players:[NET.me0].concat(guests.map(p=>({name:p.name,team:p.team||p.name+' Racing',perk:p.perk||'',avatar:p.av})))});
   G.net=1;G.netSeats=[NET.id].concat(guests.map(p=>p.id));NET.on=true;addLog('🌐 Online league started with '+G.players.length+' managers','ev');
   render();netSendNow();netUI();toast('🌐 Game on! You play first.','s');}
 // ── guest: join ──
@@ -2813,12 +2958,12 @@ function showJoin(){if(!netOk()){toast('This browser does not support online pla
   const me=NET.me0||{name:'',team:'',perk:''};const st=NET.status;
   openModal('🌐 Join online game',`<div style="max-height:66vh;overflow:auto">
     ${G.net&&gameReady?'':`<label>Manager name</label><input class="mi" id="jn" maxlength="16" value="${me.name}"><label>Team name</label><input class="mi" id="jt" maxlength="20" value="${me.team}">
-    <label>Perk</label><select class="mi" id="jp">${Object.entries(PERKS).map(([k,v])=>perkOpen(k)?`<option value="${k}"${k===me.perk?' selected':''}>${v.n} — ${v.d}</option>`:'').join('')}</select>`}
+    <label>Perk</label><select class="mi" id="jp">${Object.entries(PERKS).map(([k,v])=>perkOpen(k)?`<option value="${k}"${k===me.perk?' selected':''}>${v.n} — ${v.d}</option>`:'').join('')}</select><label>Avatar</label>${avatarPicker('jav',me.avatar|0)}`}
     <label>Invite code from the host</label><textarea class="code" id="jinv" placeholder="Paste the invite here"></textarea>
     <button class="bsm bins" onclick="netMakeReply()">↩ Create reply code</button>
     ${NET.joinCode?`<label style="margin-top:8px;display:block">Reply code — send this back to the host</label><textarea class="code" readonly onclick="this.select()">${NET.joinCode}</textarea><button class="bsm" onclick="netCopy('${NET.joinCode}')">📋 Copy reply</button>`:''}
     <div id="jst" class="gdim" style="margin-top:8px">${st}</div><ul class="lobby" id="jlob">${NET.lobby.map(x=>`<li><span>${x}</span></li>`).join('')}</ul></div>`,[]);}
-async function netMakeReply(){const n=document.getElementById('jn');if(n)NET.me0={name:n.value.trim()||'Guest',team:document.getElementById('jt').value.trim()||'Guest Racing',perk:document.getElementById('jp').value};
+async function netMakeReply(){const n=document.getElementById('jn');if(n)NET.me0={name:n.value.trim()||'Guest',team:document.getElementById('jt').value.trim()||'Guest Racing',perk:document.getElementById('jp').value,avatar:avVal('jav',0)};
   else{const p=G.players&&G.players[G.netSeats?G.netSeats.indexOf(NET.id):-1];NET.me0={name:p?p.name:'Guest',team:p?p.team:'',perk:''};}
   try{NET.host=false;NET.joinCode=await netAnswer(document.getElementById('jinv').value);NET.status='Send the reply to the host, then wait here — the game opens when they start.';showJoin();}catch(e){toast(e.message,'d');}}
 function netJoinUI(){NET.status='✅ Connected to the host. '+(NET.cfgTxt?'Game: '+NET.cfgTxt+'. ':'')+'Waiting for the host to start…';
@@ -2891,7 +3036,7 @@ function renderStats(){const S=stGet(),view=STATV,s=view==='career'?S.career:S.s
       const lead=(lab,f,fm)=>{const b=ps.slice().sort((a,c)=>f(c)-f(a))[0];return[lab,b&&f(b)>0?b.p.name+' <span class="gdim">'+b.p.team+'</span>':'—',b&&f(b)>0?fm(f(b)):''];};
       body+='<div class="ct" style="margin-top:14px">League leaders</div>'+gT(['Category','Leader','Value'],[lead('Most money (peak cash)',o=>o.x.peakCash,fmt),lead('Richest now (net worth)',o=>o.nw,fmt),lead('Most trading profit',o=>o.x.trade,fmt),
         lead('Most parts traded',o=>o.x.bought+o.x.sold,v=>v+' units'),lead('Most wins',o=>o.x.wins,v=>v),lead('Most prize money',o=>o.x.prize,fmt),lead('Most travelled',o=>o.x.trips,v=>v+' trips')]);}}
-  document.getElementById('tab-stats').innerHTML=`<div class="hero-banner" style="--hero:rgba(72,149,239,.35)"><div class="hero-content"><div class="hero-tag">📊 Team stats</div><div class="hero-title">${G.team}</div><div class="hero-desc">${G.name}${G.league?' · league of '+G.players.length:''} · ${noSeason()?'week '+G.week:'season '+G.season+', week '+G.week}</div></div></div>${seg}${body}`;
+  document.getElementById('tab-stats').innerHTML=`<div class="hero-banner" style="--hero:rgba(72,149,239,.35)"><div class="hero-content"><div class="hero-tag">📊 Team stats</div><div class="hero-title">${avatarImg(G.avatar,34)} ${G.team}</div><div class="hero-desc">${G.name}${G.league?' · league of '+G.players.length:''} · ${noSeason()?'week '+G.week:'season '+G.season+', week '+G.week}</div></div></div>${seg}${body}`;
   fxEnter();}
 
 // ══════════ v5 HOOKS ══════════
