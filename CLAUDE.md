@@ -84,6 +84,8 @@ Everything lives in the one `<script>` block, in this order:
   Leagues: `runLeagueGP()` runs first in the league `endWeek`; only the GP scores points (local races `champ=false`). `G.settings.win` (null = vanilla) and
   `G.settings.gp` come from the setup; `leagueWinCheck()` ends the game. Calibrated with the bot: `CFG.fieldPace` 2, 7th–8th neutral for reputation.
   Titles are now contested, so fewer promotions with the promotion ladder on: bankruptcy rose (100 weeks, Easy/Normal/Hard ≈ 48/73/81%).
+- **v5 title-race options**: `G.settings.promo` (`champ` default | `top3`) and `G.settings.aiRace` (`standard` default, `CFG.aiRaceChance` | `relaxed`, `CFG.aiRaceRelaxed`), chosen in setup.
+  Bot, Normal 100 weeks: default 73%, relaxed 69%, top3 76% bankrupt (top3 is harder: promotion brings faster rivals and upkeep early).
 - **v5 avatars**: `AVATARS` (15 helmet SVGs), `avatarSvg`, `avatarImg`, `avatarPicker`; `avatar` is in `PERS`.
 - **v5 stats**: `G.st` (in `PERS`, per manager) = {season, career, past[]}. Actions call the `st*()` hooks (`stBuy`, `stSale`, `stRace`,
   `stTravel`, `stCtr`, `stAdd`); `stPeak()` runs in `render()`; `stSeasonEnd()` archives a season row before `G.champ` resets. Hooks only record.

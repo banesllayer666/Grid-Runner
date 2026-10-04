@@ -942,7 +942,7 @@ const CFG={raceFeePct:0.06,raceEvery:3,racesPerWeek:1,repairPct:0.22,repairMaxLo
   insBase:200,insPct:0.004,insCover:0.75,satDecay:0.8,satDrop:0.025,satMax:0.3,satCopy:6,copyMul:0.8,copyDur:4,nemMax:6,nemWeight:0.5,storyChance:0.07,bulkAP:2,devCost:12000,devMax:4,devPace:2,stockChance:0.5,
   bmPrice:0.6,bmCond:70,bmCondMax:92,bmDsq:0.08,bmRaceFine:0.2,bmRep:10,bmCatch:0.2,bmCatchGrey:0.06,bmFine:0.6,
   stockQty:[[5000,8],[20000,5],[50000,3],[1e9,2]],bmQty:0.5,
-  grid:10,fieldPace:2,aiSpread:16,guestGap:3,aiRel:85,dragWinPts:20,dragEdge:10,aiRaceChance:0.35};
+  grid:10,fieldPace:2,aiSpread:16,guestGap:3,aiRel:85,dragWinPts:20,dragEdge:10,aiRaceChance:0.35,aiRaceRelaxed:0.2};
 // Promotion ladder ('tiers' rule): replaces the automatic per-season rival and prize growth.
 const TIERS=[{n:'Club Series',prize:1,rival:0,upkeep:0},{n:'National Series',prize:1.25,rival:6,upkeep:300},{n:'International Series',prize:1.6,rival:12,upkeep:700},{n:'World Championship',prize:2,rival:18,upkeep:1200}];
 // Race-day calls ('calls' rule). Each option: ch = chance it works ('x' = this race's rolled odds, '1-x' its inverse), g/b = pace (p) and finish-chance (r) effects.
@@ -1250,7 +1250,7 @@ function runGrid(cars){cars.forEach(c=>{if(c.dns){c.pos='DNS';return;}c.score=c.
   cars.filter(c=>c.dnf&&!c.dns).forEach(c=>c.pos='DNF');return fin.concat(cars.filter(c=>c.pos==='DNF'),cars.filter(c=>c.pos==='DNS'));}
 function awardAI(race,grid){grid.forEach(c=>{if(!c.ai)return;const a=c.ai;a.pts=(a.pts||0)+racePts(race,c.pos);if(c.pos===1)a.wins=(a.wins||0)+1;a.wk=absWk();});}
 // AI teams that didn't race with you this week race somewhere else. In a league they only race in the Grand Prix.
-function aiRaceWeek(){if(G.league||noSeason())return;ensureAI();const idle=G.ai.filter(a=>a.wk!==absWk()&&Math.random()<CFG.aiRaceChance);if(!idle.length)return;
+function aiRaceWeek(){if(G.league||noSeason())return;ensureAI();const idle=G.ai.filter(a=>a.wk!==absWk()&&Math.random()<(G.settings.aiRace==='relaxed'?CFG.aiRaceRelaxed:CFG.aiRaceChance));if(!idle.length)return;
   const runs=ALLRACES.filter(raceRuns),race=runs[Math.floor(Math.random()*runs.length)]||ALLRACES[0];
   let cars=idle.map(a=>({n:a.n,ai:a,pace:aiPace(a,race),rel:CFG.aiRel}));
   if(race.disc==='drag'){cars=shuffle(cars);for(let i=0;i<cars.length;i+=2){const duel=cars.slice(i,i+2);if(duel.length<2)duel.push({n:'Guest',guest:1,pace:race.rival+rivalAdj()+CFG.fieldPace,rel:CFG.aiRel});awardAI(race,runGrid(duel));}return;}
@@ -1397,7 +1397,7 @@ function seasonEnd(n){
   if(won){G.titles++;G.rep=Math.min(100,G.rep+10);unlock('title');}
   let move='';
   if(F('tiers')){const t=G.tier||0;
-    if(won&&t<TIERS.length-1){G.tier=t+1;move='⬆ Promoted to the '+TIERS[G.tier].n+' — bigger prizes, faster rivals, higher costs.';}
+    if((won||(G.settings.promo==='top3'&&rank<=3))&&t<TIERS.length-1){G.tier=t+1;move='⬆ Promoted to the '+TIERS[G.tier].n+' — bigger prizes, faster rivals, higher costs.';}
     else if(!won&&t>0&&rank>fin.length-3){G.tier=t-1;move='⬇ Relegated to the '+TIERS[G.tier].n+'.';}
     if(move)addLog(move,'ev');}
   stSeasonEnd(n,pts,won);
@@ -1511,7 +1511,7 @@ function newPlayer(name,team,perk,avatar){
 function see(cid,cat,obj){obj=obj||(G.seen=G.seen||{});const s=obj[cid]=obj[cid]||{};Object.keys(PARTS).forEach(pid=>{if(!cat||PARTS[pid].cat===cat)s[pid]=[getPrice(cid,pid),absWk()];});}
 function beginGame(c){
   const sprint=c.mode==='sprint',len=sprint?(+c.len||CFG.sprintLen):(+c.len||0);
-  G.mode=sprint?'sprint':len?c.mode:'endless';G.settings={seasonLen:len,diff:DIFF[c.diff]?c.diff:'normal',feat:c.feat||{},win:c.win||null,gp:Math.max(1,+c.gp||1)};G.gpSeed=Math.floor(Math.random()*32);G.winner='';G.final=null;G.reg='';G.ai=[];G.sat={};G.news='';if(F('rivals')||F('nemesis'))ensureAI();G.week=1;G.season=1;G.events=[];G.contracts=[];G.prices={};G.over=false;
+  G.mode=sprint?'sprint':len?c.mode:'endless';G.settings={seasonLen:len,diff:DIFF[c.diff]?c.diff:'normal',feat:c.feat||{},win:c.win||null,gp:Math.max(1,+c.gp||1),promo:c.promo==='top3'?'top3':'champ',aiRace:c.aiRace==='relaxed'?'relaxed':'standard'};G.gpSeed=Math.floor(Math.random()*32);G.winner='';G.final=null;G.reg='';G.ai=[];G.sat={};G.news='';if(F('rivals')||F('nemesis'))ensureAI();G.week=1;G.season=1;G.events=[];G.contracts=[];G.prices={};G.over=false;
   G.league=c.players.length>1;G.players=c.players.map((p,i)=>newPlayer(p.name,p.team,p.perk,p.avatar!=null?p.avatar:i));ensureAI();G.cur=0;loadP(0);
   initPrices();rollStock();G.players.forEach(p=>{if(p.perk==='insider')Object.keys(CITIES).forEach(cid=>see(cid,'',p.seen));else see(p.city,'',p.seen);});
   rollWeather();genContracts();G.tab='market';
@@ -1532,6 +1532,8 @@ function showSetup(online){
   const sel=(id,opts,def)=>`<select class="mi" id="${id}">${opts.map(o=>`<option value="${o[0]}"${o[0]==def?' selected':''}>${o[1]}</option>`).join('')}</select>`;
   openModal(online?'🌐 Host an online game':'🏁 New Manager',`<div style="max-height:62vh;overflow:auto">${online?'<p class="gdim" style="margin-bottom:6px">Set the season exactly as in single player. Friends join from the lobby on the next screen.</p>':''}<label>Mode</label>${sel('wm',[['career','Career — win 2 titles'],['sprint','⏱ Sprint — one season, chase a high score'],['endless','♾ Endless']],'career')}
   <label>Difficulty</label>${sel('wd',[['easy','Easy'],['normal','Normal'],['hard','Hard — starts with an $8,000 loan']],'normal')}
+  <label>Promotion <span class="gdim">(with the promotion ladder rule)</span></label>${sel('wpromo',[['champ','Champion only — standard'],['top3','Top 3 move up — climb faster, but tougher rivals and costs come sooner']],'champ')}
+  <label>AI title rivals</label>${sel('wai',[['standard','Standard — AI teams race about one week in three'],['relaxed','Relaxed — AI teams race less often, titles are easier']],'standard')}
   <label>Season length</label>${sel('wl',[[12,'12 weeks — quick'],[24,'24 weeks'],[30,'30 weeks — standard'],[42,'42 weeks'],[60,'60 weeks — long'],[0,'♾ Endless — no seasons, no championship']],30)}
   <label>Rules</label>${sel('wpre',[['full','Full — every advanced rule'],['classic','Classic — trading and racing only'],['custom','Custom']],'full').replace('<select','<select onchange="featPreset(this.value)"')}
   <details id="wadv" style="margin:6px 0"><summary style="cursor:pointer;font-size:12px;color:var(--dim)">Advanced: pick rules one by one (change any time in ⚙ Rules)</summary>
@@ -1554,7 +1556,7 @@ function leagueSetupHtml(){const o=(id,opts,d)=>`<select class="mi" id="${id}">$
 function startNewGame(){
   const g=id=>document.getElementById(id).value,n=+g('wn'),ps=[];
   for(let i=0;i<n;i++)ps.push({name:g('pn'+i).trim()||'Manager '+(i+1),team:g('pt'+i).trim()||'Team '+(i+1),perk:g('pp'+i),avatar:avVal('pa'+i,i)});
-  const feat={};FEATS.forEach(f=>feat[f[0]]=document.getElementById('f_'+f[0]).checked);gameReady=true;hideTitle();beginGame({mode:g('wm'),diff:g('wd'),len:+g('wl'),players:ps,feat,win:n>1?leagueCfg():null,gp:n>1?+g('wgp'):1});
+  const feat={};FEATS.forEach(f=>feat[f[0]]=document.getElementById('f_'+f[0]).checked);gameReady=true;hideTitle();beginGame({mode:g('wm'),diff:g('wd'),len:+g('wl'),promo:g('wpromo'),aiRace:g('wai'),players:ps,feat,win:n>1?leagueCfg():null,gp:n>1?+g('wgp'):1});
 }
 function showLeague(){
   const s=standings(),me=G.league?G.cur:0;
@@ -2615,7 +2617,7 @@ racing:()=>gH('How a race is decided')
  +gH('Disciplines')
  +gT(['Discipline','Speed weight','Aero weight','Finish chance','Parts that help most','Tip'],Object.entries(DISC).map(([k,d])=>[discE(k),'×'+d.spd,'×'+d.aero,gSg(d.rel),Object.entries(d.fit).sort((a,b)=>b[1]-a[1]).map(([p,v])=>PARTS[p].name+' '+gSg(v)).join(', '),d.tip]))
  +gH('Championship')
- +gL(['The championship is a table of every team: you, the other managers in a league, and the five AI teams. AI teams race every week: in your race when they are on its grid, otherwise in a race of their own, scoring the same points.','Whoever tops the standings when the season ends is champion (+10 reputation, +1 title). '+(noSeason()?'This game is endless, so there is no championship.':'Right now: '+champLine().replace(/<[^>]+>/g,'')+'.'),'In a league, every manager races the <strong>League Grand Prix</strong> automatically each week (or every 2–3 weeks), wherever they are. It is free, takes no AP, and is the only race that scores championship points; other races pay prize money only.'])
+ +gL(['Chosen at game start: <strong>Promotion</strong> — '+(G.settings.promo==='top3'?'the top 3 in the championship move up a series':'only the champion moves up a series')+' (with the promotion ladder rule); <strong>AI title rivals</strong> — '+(G.settings.aiRace==='relaxed'?'relaxed, AI teams race less often':'standard, AI teams race about one week in three')+'.','The championship is a table of every team: you, the other managers in a league, and the five AI teams. AI teams race every week: in your race when they are on its grid, otherwise in a race of their own, scoring the same points.','Whoever tops the standings when the season ends is champion (+10 reputation, +1 title). '+(noSeason()?'This game is endless, so there is no championship.':'Right now: '+champLine().replace(/<[^>]+>/g,'')+'.'),'In a league, every manager races the <strong>League Grand Prix</strong> automatically each week (or every 2–3 weeks), wherever they are. It is free, takes no AP, and is the only race that scores championship points; other races pay prize money only.'])
  +gH('Scrutineering')
  +gL(['Grey-market parts: '+gPc(CFG.fiaChance)+' chance per race of a DSQ ('+gPc(CFG.fiaChance/2)+' with customs on).','Black-market copies: '+gPc(CFG.bmDsq)+' per fitted copy per race. The pre-race checklist shows your total.'])
  +gH('Optional race rules')
@@ -2924,7 +2926,7 @@ function netSkip(){if(!NET.host)return;addLog('⏭ The host skipped '+G.name+'\'
 // ── host: setup → lobby → start ──
 function showHostSetup(){if(!netOk()){toast('This browser does not support online play','d');return;}showSetup(true);}
 function startLobby(){const g=id=>document.getElementById(id).value,feat={};FEATS.forEach(f=>feat[f[0]]=document.getElementById('f_'+f[0]).checked);
-  NET.cfg={mode:g('wm'),diff:g('wd'),len:+g('wl'),feat,win:leagueCfg(),gp:+g('wgp')||1};NET.me0={name:g('pn0').trim()||'Host',team:g('pt0').trim()||'Host Team',perk:g('pp0'),avatar:avVal('pa0',0)};
+  NET.cfg={mode:g('wm'),diff:g('wd'),len:+g('wl'),promo:g('wpromo'),aiRace:g('wai'),feat,win:leagueCfg(),gp:+g('wgp')||1};NET.me0={name:g('pn0').trim()||'Host',team:g('pt0').trim()||'Host Team',perk:g('pp0'),avatar:avVal('pa0',0)};
   NET.host=true;NET.on=false;NET.peers=[];NET.inv=null;showLobby();netUI();}
 function cfgTxt(c){return (c.mode==='career'?'Career':c.mode==='sprint'?'Sprint':'Endless')+' · '+c.diff+' · '+(c.len?c.len+'-week seasons':'no seasons')+' · '+Object.values(c.feat).filter(Boolean).length+'/'+FEATS.length+' rules';}
 function netLobbyCast(){const list=[NET.me0.name+' ('+NET.me0.team+') — host'].concat(NET.peers.filter(p=>p.id&&p.open).map(p=>p.name+' ('+(p.team||'')+')'));
@@ -2950,7 +2952,7 @@ async function netGotReply(){const v=document.getElementById('netrep').value;try
 function netCopy(t){try{navigator.clipboard.writeText(t);toast('Copied','s');}catch(e){toast('Select the code and copy it','w');}}
 function netStart(){const guests=NET.peers.filter(p=>p.id&&p.open);if(!guests.length){toast('Invite at least one player first','w');setTimeout(showLobby,0);return;}
   const c=NET.cfg;gameReady=true;hideTitle();
-  beginGame({mode:c.mode,diff:c.diff,len:c.len,feat:c.feat,win:c.win,gp:c.gp,players:[NET.me0].concat(guests.map(p=>({name:p.name,team:p.team||p.name+' Racing',perk:p.perk||'',avatar:p.av})))});
+  beginGame({mode:c.mode,diff:c.diff,len:c.len,promo:c.promo,aiRace:c.aiRace,feat:c.feat,win:c.win,gp:c.gp,players:[NET.me0].concat(guests.map(p=>({name:p.name,team:p.team||p.name+' Racing',perk:p.perk||'',avatar:p.av})))});
   G.net=1;G.netSeats=[NET.id].concat(guests.map(p=>p.id));NET.on=true;addLog('🌐 Online league started with '+G.players.length+' managers','ev');
   render();netSendNow();netUI();toast('🌐 Game on! You play first.','s');}
 // ── guest: join ──

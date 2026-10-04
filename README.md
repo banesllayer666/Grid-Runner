@@ -130,6 +130,7 @@ Everything in v4, plus:
 
 - **Real race grids and official points**: every race is a 10-car grid (you, the five AI teams, guest teams). You finish where your pace plus luck ranks you and score 25-18-15-12-10-8-6-4-2-1 for P1–P10. **Drag** races are head-to-head duels: 20 points for the win, nothing for the loss.
 - **AI teams fight for the title**: they race most weeks (in your race when they are on its grid, otherwise in their own) and score the same points. The champion is whoever tops the standings at the end of the season, AI teams included.
+- **Title-race options** (new-game screen, next to difficulty): *Promotion* — champion only (default) or the top 3 move up a series (faster climb, but tougher rivals and higher costs arrive sooner); *AI title rivals* — standard (default, AI teams race about one week in three) or relaxed (they race less often, so titles are easier).
 - **League Grand Prix (multiplayer)**: in a hot-seat or online league, every manager races the League GP automatically at the end of each week (or every 2–3 weeks), wherever they are: free, no AP. It is the only race that scores championship points in a league; other races pay prize money.
 - **League rules**: a league can use **vanilla** rules (career: first to 2 titles) or **custom** goals: titles, race wins, net worth or reputation to win (first to reach any goal wins), a game length in seasons, and how often the League GP runs.
 - **15 avatars**: pick a racing-helmet avatar for each manager; it appears in the header, standings, race results, stats and the online lobby.
