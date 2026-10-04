@@ -611,6 +611,20 @@ body.spect #content button:not(.fb):not(.gtab),body.spect #etb{pointer-events:no
 .track.t-rally .car .tag,.track.t-snow .car .tag{color:#fff;text-shadow:0 1px 3px #000}
 .track.wet::before{display:block;z-index:4}
 .track.t-drag::after{display:none}
+/* stats tab */
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-top:10px}
+.stile{background:var(--panel);border:1px solid var(--border);border-top:2px solid var(--accent);padding:10px 12px;transition:transform .2s var(--ease)}
+.stile:hover{transform:translateY(-2px)}
+.stile .sl,.shl .sl{font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--dim)}
+.stile .sv{font-family:var(--font-m);font-size:22px;font-weight:600;margin-top:2px;font-variant-numeric:tabular-nums}
+.stile .ss,.shl .ss{font-size:11px;color:var(--dim);margin-top:2px}
+.shls{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.shl{display:flex;gap:10px;align-items:flex-start;background:var(--panel);border:1px solid var(--border);padding:10px 12px}
+.shl .si{font-size:22px;line-height:1}.shl .sm{font-weight:600;font-size:13px;margin-top:2px}
+.sbar{display:flex;height:14px;background:var(--surface);border:1px solid var(--border);overflow:hidden;margin:4px 0}
+.sbar span{display:block;height:100%;transition:width .7s var(--ease)}
+.sleg{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--dim)}.sleg i{display:inline-block;width:9px;height:9px;margin-right:4px;vertical-align:-1px}
+.srate{display:inline-block;width:70px;height:6px;background:var(--surface);vertical-align:middle;margin-right:6px}.srate span{display:block;height:100%;background:var(--success)}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
 </style>
 </head>
@@ -717,6 +731,12 @@ body.spect #content button:not(.fb):not(.gtab),body.spect #etb{pointer-events:no
       </span>
       Travel
     </button>
+    <button class="nb" data-tab="stats">
+      <span class="ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+      </span>
+      Stats
+    </button>
     <div class="ndiv"></div>
     <button id="etb">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="4" x2="19" y2="20"/></svg>
@@ -737,6 +757,7 @@ body.spect #content button:not(.fb):not(.gtab),body.spect #etb{pointer-events:no
     <div id="tab-finance" class="tp"></div>
     <div id="tab-race" class="tp"></div>
     <div id="tab-travel" class="tp"></div>
+    <div id="tab-stats" class="tp"></div>
   </main>
 </div>
 <div id="ticker"><div class="tkinner" id="tki"></div></div>
@@ -1046,7 +1067,7 @@ function buyBM(pid,qty=1){
   const price=bmPrice(G.city,pid),tot=bulkCost(price,qty),avg=Math.round(tot/qty);
   if(G.cash<tot){toast('Need '+fmt(tot)+' — you have '+fmt(G.cash),'d');return;}
   if(!spendAP(1))return;
-  G.cash-=tot;G.prices[G.city][pid]=Math.round(getPrice(G.city,pid)*Math.pow(1.04,qty));G.bmStock[G.city][pid]-=qty;
+  G.cash-=tot;G.prices[G.city][pid]=Math.round(getPrice(G.city,pid)*Math.pow(1.04,qty));G.bmStock[G.city][pid]-=qty;stBuy(pid,qty,tot,true);
   for(let i=0;i<qty;i++){const c=CFG.bmCond+Math.floor(Math.random()*(CFG.bmCondMax-CFG.bmCond+1));G.wh.push({uid:uid(),pid,cond:c,max:c,bm:1,bp:avg,bc:G.city,bw:G.week});}
   addLog('🏴 Bought '+qty+'x black-market '+p.name+' for '+fmt(tot)+' in '+CITIES[G.city].n,'g');
   toast('Purchased '+qty+'x black-market '+p.name,'s');render();
@@ -1054,7 +1075,7 @@ function buyBM(pid,qty=1){
 // Rolls the fine for any black-market copies among parts just sold or delivered.
 function bmSale(items){
   let fine=0,n=0;items.forEach(it=>{if(it.bm&&Math.random()<bmCatch(G.city)){fine+=Math.round(getSell(G.city,it.pid,it.cond)*CFG.bmFine);n++;}});
-  if(!fine)return 0;G.cash-=fine;G.rep=Math.max(0,G.rep-3);
+  if(!fine)return 0;G.cash-=fine;stAdd('fines',fine);G.rep=Math.max(0,G.rep-3);
   addLog('🚨 Buyer reported '+n+' black-market part'+(n>1?'s':'')+' — fined '+fmt(fine)+', −3 rep','b');toast('🚨 Black-market part spotted — fined '+fmt(fine),'d',5000);return fine;
 }
 // Default part order everywhere: catalogue category order, then cheapest first by the local price.
@@ -1091,6 +1112,7 @@ function buyPart(pid,qty=1){
   if(G.cash<tot){toast('Need '+fmt(tot)+' — you have '+fmt(G.cash),'d');return;}
   if(!spendAP(1))return;
   G.cash-=tot;G.prices[G.city][pid]=Math.round(price*Math.pow(1.04,qty));if(!p.grey&&G.stock&&G.stock[G.city])G.stock[G.city][pid]-=qty;
+  stBuy(pid,qty,tot,false);
   for(let i=0;i<qty;i++)G.wh.push({uid:uid(),pid,cond:100,bp:avg,bc:G.city,bw:G.week});
   addLog('Bought '+qty+'x '+p.name+' for '+fmt(tot)+' in '+CITIES[G.city].n,'g');
   toast('Purchased '+qty+'x '+p.name,'s');render();
@@ -1100,7 +1122,7 @@ function sellWh(iuid){
   const idx=G.wh.findIndex(i=>i.uid===iuid);if(idx<0)return;
   const it=G.wh[idx],sp=getSell(G.city,it.pid,it.cond);
   if(!spendAP(1))return;
-  G.cash+=sp;const pl=sp-it.bp;G.wh.splice(idx,1);satAdd(G.city,it.pid,1);bmSale([it]);G.prices[G.city][it.pid]=Math.round(G.prices[G.city][it.pid]*0.95);
+  G.cash+=sp;const pl=sp-it.bp;stSale(it,sp);G.wh.splice(idx,1);satAdd(G.city,it.pid,1);bmSale([it]);G.prices[G.city][it.pid]=Math.round(G.prices[G.city][it.pid]*0.95);
   const pls=pl>=0?'+'+fmt(pl):fmt(pl);
   addLog('Sold '+PARTS[it.pid].name+' for '+fmt(sp)+' ('+pls+') in '+CITIES[G.city].n,pl>=0?'g':'b');
   toast('Sold for '+fmt(sp)+' ('+pls+')',pl>=0?'s':'i');render();
@@ -1129,7 +1151,7 @@ function travelTo(cid){
   const fee=Math.round(CITIES[cid].tc*(F('hq')?1-0.1*(G.truck||0):1));
   if(G.cash<fee){G.ap++;toast('Need '+fmt(fee)+' to travel!','d');return;}
   G.cash-=fee;G.prev=G.city;addLog('Travelled to '+CITIES[cid].n+' — cost '+fmt(fee),'');
-  G.city=cid;see(cid);arrivalChecks(cid);toast('Arrived in '+CITIES[cid].n+' '+CITIES[cid].f,'s');render();
+  stTravel(cid,fee);G.city=cid;see(cid);arrivalChecks(cid);toast('Arrived in '+CITIES[cid].n+' '+CITIES[cid].f,'s');render();
 }
 
 function tierOf(){return TIERS[Math.min(TIERS.length-1,G.tier||0)];}
@@ -1143,11 +1165,11 @@ function enterRace(race){
   const fee=raceFee(race);
   if(G.cash<fee){toast('Entry fee is '+fmt(fee)+' — not enough cash','d');return;}
   if(!spendAP(1))return;
-  G.cash-=fee;G.raced++;
+  G.cash-=fee;G.raced++;stAdd('fees',fee);
   const greys=G.inst.filter(i=>PARTS[i.pid].grey);
   if(greys.length&&Math.random()<CFG.fiaChance*(F('customs')?0.5:1)){
     const g=greys[0],pp=PARTS[g.pid],fine=Math.round(pp.base*0.3);
-    G.inst.splice(G.inst.indexOf(g),1);G.cash-=fine;G.rep=Math.max(0,G.rep-15);G.dnfWk=true;
+    G.inst.splice(G.inst.indexOf(g),1);G.cash-=fine;stRace(race,'DSQ',0,0);stAdd('fines',fine);G.rep=Math.max(0,G.rep-15);G.dnfWk=true;
     G.opt=null;postRace('DNF');G.raceHist.unshift({wk:G.week,n:race.n,d:race.disc,pos:'DNF',prize:0,pts:0});if(G.raceHist.length>12)G.raceHist.pop();
     addLog('🚨 FIA scrutineering: '+pp.name+' confiscated, DSQ, fine '+fmt(fine),'b');
     openModal('🚨 Disqualified','<p>Scrutineers found the illegal '+pp.name+'. Part confiscated, fine '+fmt(fine)+', −15 reputation, no prize.</p>',[]);render();return;
@@ -1155,7 +1177,7 @@ function enterRace(race){
   const bms=G.inst.filter(i=>i.bm);
   if(bms.length&&Math.random()<bmDsq()){
     const g=bms[Math.floor(Math.random()*bms.length)],pp=PARTS[g.pid],fine=Math.round(pp.base*CFG.bmRaceFine);
-    G.inst.splice(G.inst.indexOf(g),1);G.cash-=fine;G.rep=Math.max(0,G.rep-CFG.bmRep);G.dnfWk=true;
+    G.inst.splice(G.inst.indexOf(g),1);G.cash-=fine;stRace(race,'DSQ',0,0);stAdd('fines',fine);G.rep=Math.max(0,G.rep-CFG.bmRep);G.dnfWk=true;
     G.opt=null;postRace('DNF');G.raceHist.unshift({wk:G.week,n:race.n,d:race.disc,pos:'DNF',prize:0,pts:0});if(G.raceHist.length>12)G.raceHist.pop();
     addLog('🚨 Scrutineers traced a black-market '+pp.name+': confiscated, DSQ, fine '+fmt(fine),'b');
     openModal('🚨 Disqualified','<p>Scrutineers found no paperwork for your '+pp.name+' — a black-market copy. Part confiscated, fine '+fmt(fine)+', −'+CFG.bmRep+' reputation, no prize.</p>',[]);render();return;
@@ -1175,7 +1197,7 @@ function runRace(race){
   const pf=perfScore(race);G.opt=null;G.callMod=null;const note=G.callNote;G.callNote='';
   if(note)addLog('📻 '+note,'');
   if(Math.random()<Math.max(0.02,(100-pf.rel)*0.0045)){
-    G.dnfWk=true;postRace('DNF');wearParts(28);G.raceHist.unshift({wk:G.week,n:race.n,d:race.disc,pos:'DNF',prize:0,pts:0});if(G.raceHist.length>12)G.raceHist.pop();addLog('DNF in '+race.n+' — mechanical failure!','b');goalTick('DNF');
+    G.dnfWk=true;postRace('DNF');wearParts(28);G.raceHist.unshift({wk:G.week,n:race.n,d:race.disc,pos:'DNF',prize:0,pts:0});if(G.raceHist.length>12)G.raceHist.pop();addLog('DNF in '+race.n+' — mechanical failure!','b');stRace(race,'DNF',0,0);goalTick('DNF');
     showRaceResult(race,{pos:'DNF',prize:0,pts:0,note,pf});render();return;
   }
   const pl=(Math.random()-0.5)*30,rl=(Math.random()-0.5)*28;
@@ -1197,7 +1219,7 @@ function runRace(race){
   wearParts(pos<=3?10:pos<=6?14:20);
   G.raceHist.unshift({wk:G.week,n:race.n,d:race.disc,pos,prize,pts});
   if(G.raceHist.length>12)G.raceHist.pop();
-  addLog('P'+pos+' in '+race.n+' · Prize: '+fmt(prize),'g');goalTick(pos);
+  addLog('P'+pos+' in '+race.n+' · Prize: '+fmt(prize),'g');stRace(race,pos,prize,pts);goalTick(pos);
   showRaceResult(race,{pos,prize,pts,note,why});render();
 }
 // Post-race breakdown: why the result happened, in score points.
@@ -1226,7 +1248,7 @@ function sellStack(pid){
   const items=G.wh.filter(i=>i.pid===pid);if(!items.length)return;
   if(!spendAP(1))return;
   let tot=0,pl=0;
-  let f=1;items.forEach(it=>{const sp=Math.round(getSell(G.city,pid,it.cond)*f);f*=0.95;tot+=sp;pl+=sp-(it.bp||0);});G.prices[G.city][pid]=Math.round(G.prices[G.city][pid]*f);
+  let f=1;items.forEach(it=>{const sp=Math.round(getSell(G.city,pid,it.cond)*f);f*=0.95;tot+=sp;pl+=sp-(it.bp||0);stSale(it,sp);});G.prices[G.city][pid]=Math.round(G.prices[G.city][pid]*f);
   G.cash+=tot;G.wh=G.wh.filter(i=>i.pid!==pid);satAdd(G.city,pid,items.length);bmSale(items);
   addLog('Sold '+items.length+'x '+PARTS[pid].name+' for '+fmt(tot)+' ('+(pl>=0?'+':'')+fmt(pl)+')',pl>=0?'g':'b');
   toast('Sold '+items.length+' for '+fmt(tot),pl>=0?'s':'i');render();
@@ -1264,6 +1286,7 @@ function seasonEnd(n){
     if(won&&t<TIERS.length-1){G.tier=t+1;move='⬆ Promoted to the '+TIERS[G.tier].n+' — bigger prizes, faster rivals, higher costs.';}
     else if(!won&&t>0&&pts<need*CFG.relegatePct){G.tier=t-1;move='⬇ Relegated to the '+TIERS[G.tier].n+'.';}
     if(move)addLog(move,'ev');}
+  stSeasonEnd(n,pts,won);
   G.champ={pts:0,wins:G.champ.wins};
   if(F('dev')){G.devB=(G.dev||0)*CFG.devPace;G.dev=0;if(G.devB)addLog('🔬 Next-season package fitted: +'+G.devB+' pace this season','ev');}
   addLog((won?'🏆 Season '+n+' CHAMPIONS':'Season '+n+' ended without the title')+' — '+pts+'/'+need+' pts','ev');
@@ -1276,7 +1299,7 @@ function seasonEnd(n){
 }
 // Sprint mode: one season, then a final score. Best scores and achievements live in CFG.metaKey, outside any save.
 function sprintScore(pts,won){return Math.max(0,Math.round(nw(G)))+pts*CFG.sprintPts+(won?CFG.sprintTitle:0);}
-function meta(){try{const m=JSON.parse(localStorage.getItem(CFG.metaKey));if(m&&m.ach)return{ach:m.ach,best:m.best||[]};}catch(e){}return{ach:{},best:[]};}
+function meta(){try{const m=JSON.parse(localStorage.getItem(CFG.metaKey));if(m&&m.ach)return{ach:m.ach,best:m.best||[],rec:m.rec||{}};}catch(e){}return{ach:{},best:[],rec:{}};}
 function saveMeta(m){try{localStorage.setItem(CFG.metaKey,JSON.stringify(m));}catch(e){}}
 function recordScore(s){const m=meta();m.best.push({s,n:G.name,d:G.settings.diff,at:new Date().toLocaleDateString()});m.best.sort((a,b)=>b.s-a.s);m.best=m.best.slice(0,5);saveMeta(m);}
 function bestTable(){const b=meta().best;return b.length?'<table style="width:100%;font-size:12px;margin-top:6px">'+b.map((r,i)=>`<tr><td>${i+1}</td><td>${r.n}</td><td>${r.d}</td><td>${r.at}</td><td style="text-align:right">${r.s.toLocaleString()}</td></tr>`).join('')+'</table>':'<div style="font-size:12px;color:var(--dim)">No sprint scores yet.</div>';}
@@ -1319,7 +1342,7 @@ const PERKS={negotiator:{n:'Negotiator',d:'buys cost 6% less'},hustler:{n:'Hustl
   veteran:{n:'Veteran',d:'start with a Club Racer signed'},insider:{n:'Insider',d:'know every hub\'s prices at the start, informant tips half price'},heir:{n:'Heir',d:'+$12,000 starting cash'}};
 // Hard starts with an $8,000 bank loan (this was the separate "Debt start" rule in v2).
 const DIFF={easy:{cash:22000,rival:-6,dis:0.06,loan:0.7,debt:0},normal:{cash:15000,rival:0,dis:0.12,loan:1,debt:0},hard:{cash:9000,rival:7,dis:0.16,loan:1.2,debt:8000}};
-const PERS=['wkWage','cash','rep','city','wh','inst','loans','consMiss','wkBase','greyOk','raceHist','champ','log','ap','raced','titles','won','driver','dnfWk','staff','perk','name','team','banned','dead','lrep','truck','hq','dxp','tier','seen','dcon','sharkDue','sharkLate','score','prev','ins','dev','devB','goal'];
+const PERS=['st','wkWage','cash','rep','city','wh','inst','loans','consMiss','wkBase','greyOk','raceHist','champ','log','ap','raced','titles','won','driver','dnfWk','staff','perk','name','team','banned','dead','lrep','truck','hq','dxp','tier','seen','dcon','sharkDue','sharkLate','score','prev','ins','dev','devB','goal'];
 // ins: insurance covers the asset loss. w: weight under the 'cover' rule, so the risk follows how you play.
 const DISASTERS=[
  {n:'🔥 Garage fire',d:'Every installed part loses 25% condition.',ins:1,w:()=>1,why:'always possible',f:()=>G.inst.forEach(i=>i.cond=Math.max(5,i.cond-25))},
@@ -1339,7 +1362,7 @@ function insPrem(){return F('cover')&&G.ins?Math.round(CFG.insBase+assetVal()*CF
 function setIns(v){G.ins=v?1:0;addLog(v?'🛡 Insurance policy taken out':'Insurance policy cancelled','');toast(v?'🛡 Insured from next week: '+fmt(insPrem())+'/wk':'Insurance cancelled','i');render();}
 function disaster(){
   if(Math.random()>=disChance())return;
-  const e=pickDisaster(),before=assetVal();e.f();let d=e.d;
+  const e=pickDisaster(),before=assetVal();e.f();stAdd('dis',1);let d=e.d;
   if(F('cover')&&G.ins&&e.ins){const pay=Math.round(Math.max(0,before-assetVal())*CFG.insCover);if(pay){G.cash+=pay;d+=' Insurance paid '+fmt(pay)+'.';}}
   addLog(e.n+' — '+d,'b');toast(e.n+' '+d,'d',7000);
   if(!G.league)openModal(e.n,'<p>'+d+'</p>',[]);
@@ -1593,7 +1616,7 @@ function deliverContract(cid){
   if(items.length<c.qty){toast('Need '+c.qty+'x '+PARTS[c.pid].name+' at '+c.mc+'%+ condition in your warehouse','d');return;}
   if(!spendAP(1))return;
   items.forEach(it=>G.wh.splice(G.wh.indexOf(it),1));
-  G.contracts=G.contracts.filter(x=>x.id!==cid);G.cash+=c.reward;G.rep=Math.min(100,G.rep+3);bmSale(items);
+  stCtr(c,items);G.contracts=G.contracts.filter(x=>x.id!==cid);G.cash+=c.reward;G.rep=Math.min(100,G.rep+3);bmSale(items);
   addLog('📦 Contract delivered: '+c.qty+'x '+PARTS[c.pid].name+' → '+fmt(c.reward)+' (+3 rep)','g');
   toast('Contract complete: +'+fmt(c.reward),'s');render();
 }
@@ -1667,9 +1690,10 @@ function sharkWeek(){
 }
 
 function playerWeek(){
+  stAdd('interest',Object.keys(LENDERS).reduce((a,l)=>a+loanInt(l),0));
   Object.keys(LENDERS).forEach(l=>{G.loans[l]+=loanInt(l);});
   G.cash-=G.wkBase+tierUpkeep()+wageDue()+insPrem();G.wkWage=0;
-  const spn=G.dnfWk?0:(sponsorTier()?sponsorTier().pay:0);if(spn){G.cash+=spn;addLog('Sponsor paid '+fmt(spn),'g');}G.dnfWk=false;
+  const spn=G.dnfWk?0:(sponsorTier()?sponsorTier().pay:0);if(spn){G.cash+=spn;stAdd('spon',spn);addLog('Sponsor paid '+fmt(spn),'g');}G.dnfWk=false;
   if(!F('shark')&&G.loans.consortium>0&&G.cash<0){
     G.consMiss++;addLog('⚠ Missed Consortium payment!','b');toast('⚠ Missed Consortium payment!','d');
     if(G.consMiss>=2){
@@ -1878,7 +1902,7 @@ function sellQty(pid,q){
   if(!items.length)return;
   if(!spendAP(1))return;
   let tot=0,pl=0,f=1;
-  items.forEach(it=>{const sp=Math.round(getSell(G.city,pid,it.cond)*f);f*=0.95;tot+=sp;pl+=sp-(it.bp||0);G.wh.splice(G.wh.indexOf(it),1);});
+  items.forEach(it=>{const sp=Math.round(getSell(G.city,pid,it.cond)*f);f*=0.95;tot+=sp;pl+=sp-(it.bp||0);stSale(it,sp);G.wh.splice(G.wh.indexOf(it),1);});
   G.prices[G.city][pid]=Math.round(G.prices[G.city][pid]*f);
   G.cash+=tot;satAdd(G.city,pid,items.length);bmSale(items);
   addLog('Sold '+items.length+'x '+PARTS[pid].name+' for '+fmt(tot)+' ('+(pl>=0?'+':'')+fmt(pl)+') in '+CITIES[G.city].n,pl>=0?'g':'b');
@@ -1891,7 +1915,7 @@ function profitStacks(){const ps=[...new Set(G.wh.map(i=>i.pid))].filter(pid=>!G
 function sellAllProfit(){
   if(!F('bulk'))return;const ps=profitStacks();if(!ps.length){toast('Nothing in profit here','w');return;}
   if(!spendAP(CFG.bulkAP))return;let tot=0,pl=0,n=0;
-  ps.forEach(pid=>{const items=G.wh.filter(i=>i.pid===pid);let f=1;items.forEach(it=>{const sp=Math.round(getSell(G.city,pid,it.cond)*f);f*=0.95;tot+=sp;pl+=sp-(it.bp||0);n++;});
+  ps.forEach(pid=>{const items=G.wh.filter(i=>i.pid===pid);let f=1;items.forEach(it=>{const sp=Math.round(getSell(G.city,pid,it.cond)*f);f*=0.95;tot+=sp;pl+=sp-(it.bp||0);stSale(it,sp);n++;});
     G.prices[G.city][pid]=Math.round(G.prices[G.city][pid]*f);G.wh=G.wh.filter(i=>i.pid!==pid);satAdd(G.city,pid,items.length);bmSale(items);});
   G.cash+=tot;addLog('📦 Bulk sale: '+n+' parts for '+fmt(tot)+' (+'+fmt(pl)+') in '+CITIES[G.city].n,'g');toast('Sold '+n+' parts for '+fmt(tot),'s');render();
 }
@@ -2276,7 +2300,7 @@ function clearSave(){try{localStorage.removeItem(CFG.saveKey);}catch(e){}}
 function newGame(){if(confirm('Start a new game? Current progress will be lost.')){clearSave();location.reload();}}
 
 function render(){
-  saveGame();
+  stPeak();saveGame();
   if(G.league&&G.ap<=0&&!document.getElementById('mo').classList.contains('open')&&!titleOpen()){queuePass();}
   renderHeader();renderTicker();
   if(G.tab==='market'){renderMarket();renderContracts();}
@@ -2285,6 +2309,7 @@ function render(){
   else if(G.tab==='finance')renderFinance();
   else if(G.tab==='race')renderRace();
   else if(G.tab==='travel')renderTravel();
+  else if(G.tab==='stats')renderStats();
   fxEnter();fxBadges();const eb=document.getElementById('etb');if(eb)eb.classList.toggle('ready',G.ap<=0);
   if(NET.on&&!NET.applying&&myTurn())netSendSoon();netUI();
 }
@@ -2374,7 +2399,7 @@ start:()=>{const d=DF();return gH('What is Grid Runner?')
  +gH('Good habits')
  +gL(['Plan routes around race dates: every event runs every '+CFG.raceEvery+' weeks.','Don\'t fill the warehouse with one part: every unit you buy pushes the price up ~4%, every unit you sell pushes it down ~5%.','Delivery contracts pay 35–60% over market. Check them every week in the Market tab.','Repair before parts fall under 40%: worn parts cost pace, finish chance, and invite safety recalls.','Borrow from Sport Finance first. The Consortium is a last resort.','Read the race breakdown after each race: it shows exactly where you gained or lost.'])
  +gH('The screens')
- +gT(['Tab','What you do there'],[['Market','Buy and sell parts, see stock and prices, delivery contracts, the black market'],['Garage','Your car: installed parts, repairs, upgrades, driver, staff, HQ, R&D'],['Warehouse','Parts you own: install, sell, sell a whole stack'],['Finance','Cash, weekly costs, loans, insurance and risk report'],['Race','This week\'s races, weather, finish chance, checklist, the championship'],['Travel','Hubs, fares, cheap and expensive categories, return trip']]);},
+ +gT(['Tab','What you do there'],[['Market','Buy and sell parts, see stock and prices, delivery contracts, the black market'],['Garage','Your car: installed parts, repairs, upgrades, driver, staff, HQ, R&D'],['Warehouse','Parts you own: install, sell, sell a whole stack'],['Finance','Cash, weekly costs, loans, insurance and risk report'],['Race','This week\'s races, weather, finish chance, checklist, the championship'],['Travel','Hubs, fares, cheap and expensive categories, return trip'],['Stats','Your season and career numbers, highlights, season history, league leaders and device records']]);},
 terms:()=>gT(['Term','Meaning'],[
  ['AP (Action Points)','5 per week. Buying, selling, travelling, racing, repairing, upgrading and borrowing cost 1 each (bulk selling costs '+CFG.bulkAP+'). Installing parts is free.'],
  ['Hub','One of '+Object.keys(CITIES).length+' cities. Each has its own prices, stock, races and travel fare.'],
@@ -2798,6 +2823,76 @@ async function netMakeReply(){const n=document.getElementById('jn');if(n)NET.me0
   try{NET.host=false;NET.joinCode=await netAnswer(document.getElementById('jinv').value);NET.status='Send the reply to the host, then wait here — the game opens when they start.';showJoin();}catch(e){toast(e.message,'d');}}
 function netJoinUI(){NET.status='✅ Connected to the host. '+(NET.cfgTxt?'Game: '+NET.cfgTxt+'. ':'')+'Waiting for the host to start…';
   const j=document.getElementById('jst');if(j){j.textContent=NET.status;document.getElementById('jlob').innerHTML=NET.lobby.map(x=>`<li><span>${x}</span></li>`).join('');}}
+
+// ══════════ PLAYER STATS (v5) ══════════
+// G.st (per manager, in PERS): season = this season, career = all seasons of this game, past = one summary row per finished
+// season. The actions call the st*() hooks below; they only record, never change the game. Device-wide records (best ever
+// across games) live in the meta store next to achievements (meta().rec).
+function stBlank(){return{peakCash:0,peakNW:0,peakDebt:0,trade:0,prize:0,ctr:0,ctrN:0,spon:0,bought:0,sold:0,spent:0,rev:0,bm:0,best:null,
+  parts:{},hubs:{},races:{},disc:{},entered:0,wins:0,pods:0,dnf:0,dsq:0,bestPos:0,pts:0,fees:0,trips:0,fares:0,fines:0,dis:0,interest:0};}
+function stGet(){if(!G.st||!G.st.season){G.st={season:stBlank(),career:stBlank(),past:[]};G.st.season.hubs[G.city]=1;G.st.career.hubs[G.city]=1;}return G.st;}
+function st(f){const s=stGet();f(s.season);f(s.career);}
+function stAdd(k,v){st(s=>{s[k]=(s[k]||0)+v;});}
+function stPart(s,pid){return s.parts[pid]=s.parts[pid]||{b:0,s:0,pl:0};}
+function stBuy(pid,q,tot,bm){st(s=>{s.bought+=q;s.spent+=tot;stPart(s,pid).b+=q;if(bm)s.bm+=q;});}
+function stSale(it,sp){const pl=sp-(it.bp||0);st(s=>{s.sold++;s.rev+=sp;s.trade+=pl;const p=stPart(s,it.pid);p.s++;p.pl+=pl;if(!s.best||pl>s.best.pl)s.best={pid:it.pid,pl,sp,cid:G.city};});recBeat('bestSale',pl);}
+function stCtr(c,items){st(s=>{s.ctrN++;s.ctr+=c.reward;const p=stPart(s,c.pid);p.s+=items.length;});}
+function stTravel(cid,fee){st(s=>{s.trips++;s.fares+=fee;s.hubs[cid]=(s.hubs[cid]||0)+1;});}
+// pos: 1..10, 'DNF' or 'DSQ'
+function stRace(race,pos,prize,pts){st(s=>{s.entered++;const r=s.races[race.id]=s.races[race.id]||{n:0,w:0,best:0},d=s.disc[race.disc]=s.disc[race.disc]||{n:0,w:0,p:0};r.n++;d.n++;
+  if(pos==='DNF')s.dnf++;else if(pos==='DSQ')s.dsq++;else{s.prize+=prize;s.pts+=pts;if(pos===1){s.wins++;r.w++;d.w++;}if(pos<=3){s.pods++;d.p++;}
+    if(!s.bestPos||pos<s.bestPos)s.bestPos=pos;if(!r.best||pos<r.best)r.best=pos;}});}
+// Peaks are sampled on every render (cheap) and at the end of each week.
+function stPeak(){if(!G.wh)return;const n=Math.round(G.cash+wval()-tdebt()),d=tdebt();st(s=>{if(G.cash>s.peakCash)s.peakCash=G.cash;if(n>s.peakNW)s.peakNW=n;if(d>s.peakDebt)s.peakDebt=d;});
+  recBeat('peakCash',G.cash);recBeat('peakNW',n);}
+function stSeasonEnd(n,pts,won){const s=stGet(),c=s.season;
+  s.past.push({season:n,pts,won,tier:F('tiers')?tierOf().n:'',wins:c.wins,pods:c.pods,entered:c.entered,prize:c.prize,trade:c.trade,peakNW:c.peakNW,peakCash:c.peakCash});
+  recBeat('seasonWins',c.wins);recBeat('seasonPrize',c.prize);recBeat('seasonTrade',c.trade);recBeat('seasonPts',pts);
+  s.season=stBlank();s.season.hubs[G.city]=1;}
+// Device records: [value, manager, team, date]. Saved only when beaten, so renders stay cheap.
+function recBeat(k,v){if(typeof v!=='number'||!(v>0))return;const m=meta();m.rec=m.rec||{};const o=m.rec[k];if(o&&o[0]>=v)return;
+  m.rec[k]=[Math.round(v),G.name,G.team,new Date().toLocaleDateString()];saveMeta(m);}
+// ── reading the stats ──
+function stTop(obj,score){let best=null,bv=-Infinity;for(const k in obj){const v=score(obj[k],k);if(v>bv){bv=v;best=k;}}return best==null||bv<=0?null:[best,bv];}
+function stSummary(s){
+  const traded=stTop(s.parts,p=>p.b+p.s),profit=stTop(s.parts,p=>p.pl),won=stTop(s.races,r=>r.w*1000+r.n),hub=stTop(s.hubs,v=>v),
+    disc=stTop(s.disc,d=>d.w>0?d.w/d.n+d.n*1e-4:0),raced=stTop(s.races,r=>r.n);
+  return{traded,profit,won,hub,disc,raced,winRate:s.entered?s.wins/s.entered:0,income:s.trade+s.prize+s.ctr+s.spon};}
+let STATV='season';
+function statsView(v){STATV=v;FX.tab='';renderStats();}
+const sfm=v=>v<0?'−'+fmt(-v):fmt(v);
+function renderStats(){const S=stGet(),view=STATV,s=view==='career'?S.career:S.season,sm=stSummary(s),pn=pid=>PARTS[pid]?PARTS[pid].name:pid,rn=id=>(findRace(id)||{n:id}).n;
+  const tile=(lab,val,sub,col)=>`<div class="stile"><div class="sl">${lab}</div><div class="sv"${col?` style="color:${col}"`:''}>${val}</div>${sub?`<div class="ss">${sub}</div>`:''}</div>`;
+  const hl=(ico,lab,main,sub)=>`<div class="shl"><div class="si">${ico}</div><div><div class="sl">${lab}</div><div class="sm">${main||'<span class="gdim">—</span>'}</div>${sub?`<div class="ss">${sub}</div>`:''}</div></div>`;
+  const bar=(items)=>{const t=items.reduce((a,x)=>a+Math.max(0,x[1]),0)||1;return `<div class="sbar">${items.filter(x=>x[1]>0).map(x=>`<span style="width:${x[1]/t*100}%;background:${x[2]}" title="${x[0]}: ${fmt(x[1])}"></span>`).join('')}</div><div class="sleg">${items.map(x=>`<span><i style="background:${x[2]}"></i>${x[0]} ${fmt(Math.max(0,x[1]))}</span>`).join('')}</div>`;};
+  const seg=`<div class="mc">${[['season',noSeason()?'This game':'This season'],['career','All seasons'],['records','🏅 Device records']].map(([k,l])=>`<button class="fb${view===k?' a':''}" onclick="statsView('${k}')">${l}</button>`).join('')}</div>`;
+  let body='';
+  if(view==='records'){const R=(meta().rec)||{},row=(k,lab,f)=>{const r=R[k];return`<tr><td>${lab}</td><td class="pc">${r?f(r[0]):'—'}</td><td>${r?r[1]+' <span class="gdim">'+r[2]+'</span>':''}</td><td class="gdim">${r?r[3]:''}</td></tr>`;};
+    body=`<p class="gdim">Best marks ever set on this device, across every game and manager.</p>`+gT(['Record','Value','Manager','Date'],[]).replace('<tbody></tbody>','<tbody>'+
+      row('peakNW','Highest net worth',fmt)+row('peakCash','Most cash at once',fmt)+row('bestSale','Biggest profit on one sale',fmt)+row('seasonWins','Most wins in a season',v=>v)+
+      row('seasonPts','Most points in a season',v=>v)+row('seasonPrize','Most prize money in a season',fmt)+row('seasonTrade','Most trading profit in a season',fmt)+'</tbody>');}
+  else{
+    body=`<div class="sgrid">${tile('Peak cash',fmt(s.peakCash),'now '+fmt(G.cash),'var(--success)')}${tile('Peak net worth',sfm(s.peakNW))}${tile('Trading profit',sfm(s.trade),s.sold+' sold · '+s.bought+' bought',s.trade>=0?'var(--success)':'var(--danger)')}${tile('Prize money',fmt(s.prize),s.pts+' points','var(--gold)')}
+      ${tile('Races',s.entered,s.wins+' wins · '+s.pods+' podiums')}${tile('Win rate',Math.round(sm.winRate*100)+'%',s.dnf+' DNF · '+s.dsq+' DSQ')}${tile('Best finish',s.bestPos?'P'+s.bestPos:'—')}${tile('Trips',s.trips,fmt(s.fares)+' in fares')}</div>
+    <div class="ct" style="margin-top:14px">Highlights</div><div class="shls">
+      ${hl('📦','Most traded part',sm.traded&&pn(sm.traded[0]),sm.traded&&sm.traded[1]+' units bought and sold')}
+      ${hl('💰','Most profitable part',sm.profit&&pn(sm.profit[0]),sm.profit&&'+'+fmt(sm.profit[1])+' profit')}
+      ${hl('⭐','Best single sale',s.best&&s.best.pl>0&&pn(s.best.pid),s.best&&s.best.pl>0&&'+'+fmt(s.best.pl)+' in '+(CITIES[s.best.cid]||{n:''}).n)}
+      ${hl('🏆','Most won race',sm.won&&s.races[sm.won[0]].w?rn(sm.won[0]):null,sm.won&&s.races[sm.won[0]].w?s.races[sm.won[0]].w+' win'+(s.races[sm.won[0]].w>1?'s':'')+' from '+s.races[sm.won[0]].n+' starts':null)}
+      ${hl('🏁','Most raced event',sm.raced&&rn(sm.raced[0]),sm.raced&&sm.raced[1]+' starts')}
+      ${hl('🎯','Best discipline',sm.disc&&discE(sm.disc[0]),sm.disc&&Math.round(s.disc[sm.disc[0]].w/s.disc[sm.disc[0]].n*100)+'% wins in '+s.disc[sm.disc[0]].n+' races')}
+      ${hl('📍','Favourite hub',sm.hub&&CITIES[sm.hub[0]].f+' '+CITIES[sm.hub[0]].n,sm.hub&&sm.hub[1]+' visits')}
+      ${hl('🏴','Black-market buys',s.bm?s.bm+' parts':null,s.fines?fmt(s.fines)+' in fines':null)}</div>
+    <div class="ct" style="margin-top:14px">Money in</div>${bar([['Trading',s.trade,'#57cc99'],['Prizes',s.prize,'#ffd60a'],['Contracts',s.ctr,'#4895ef'],['Sponsors',s.spon,'#9b5de5']])}
+    <div class="ct" style="margin-top:10px">Money out</div>${bar([['Entry fees',s.fees,'#ff5c1a'],['Fares',s.fares,'#8a8f98'],['Interest',s.interest,'#e63946'],['Fines',s.fines,'#b33d10']])}
+    ${Object.keys(s.disc).length?'<div class="ct" style="margin-top:14px">By discipline</div>'+gT(['Discipline','Races','Wins','Podiums','Win rate'],Object.entries(s.disc).sort((a,b)=>b[1].n-a[1].n).map(([k,d])=>[discE(k),d.n,d.w,d.p,`<div class="srate"><span style="width:${Math.round(d.w/d.n*100)}%"></span></div> ${Math.round(d.w/d.n*100)}%`])):''}
+    ${view==='career'&&S.past.length?'<div class="ct" style="margin-top:14px">Season by season</div>'+gT(['Season','Points','Title','Wins','Podiums','Prize money','Trading profit','Peak net worth'],S.past.slice().reverse().map(p=>['S'+p.season+(p.tier?' <span class="gdim">'+p.tier+'</span>':''),p.pts,p.won?'🏆':'—',p.wins,p.pods,fmt(p.prize),sfm(p.trade),sfm(p.peakNW)])):''}`;
+    if(G.league){stash();const ps=G.players.map(p=>{const x=p.st?(view==='career'?p.st.career:p.st.season):stBlank();return{p,x,nw:nw(p)};});
+      const lead=(lab,f,fm)=>{const b=ps.slice().sort((a,c)=>f(c)-f(a))[0];return[lab,b&&f(b)>0?b.p.name+' <span class="gdim">'+b.p.team+'</span>':'—',b&&f(b)>0?fm(f(b)):''];};
+      body+='<div class="ct" style="margin-top:14px">League leaders</div>'+gT(['Category','Leader','Value'],[lead('Most money (peak cash)',o=>o.x.peakCash,fmt),lead('Richest now (net worth)',o=>o.nw,fmt),lead('Most trading profit',o=>o.x.trade,fmt),
+        lead('Most parts traded',o=>o.x.bought+o.x.sold,v=>v+' units'),lead('Most wins',o=>o.x.wins,v=>v),lead('Most prize money',o=>o.x.prize,fmt),lead('Most travelled',o=>o.x.trips,v=>v+' trips')]);}}
+  document.getElementById('tab-stats').innerHTML=`<div class="hero-banner" style="--hero:rgba(72,149,239,.35)"><div class="hero-content"><div class="hero-tag">📊 Team stats</div><div class="hero-title">${G.team}</div><div class="hero-desc">${G.name}${G.league?' · league of '+G.players.length:''} · ${noSeason()?'week '+G.week:'season '+G.season+', week '+G.week}</div></div></div>${seg}${body}`;
+  fxEnter();}
 
 // ══════════ v5 HOOKS ══════════
 // Decorate the existing actions without changing their logic.

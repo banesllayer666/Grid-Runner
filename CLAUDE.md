@@ -78,6 +78,9 @@ Everything lives in the one `<script>` block, in this order:
   player's too (marked by an orange glow), plus shuffled rival names (`rivalNames`), lane order, speed curves, lights-out delay and scenery
   variants — keep races randomised. A missing sheet falls back to the drawn `carSvg()`. Car motion must stay monotonic (only forward) and cross
   the line in result order. Credits: `assets/CREDITS.md`; keep the in-game `#credit` line for the CC BY Formula cars.
+- **v5 stats**: `G.st` (in `PERS`, per manager) = {season, career, past[]}. Actions call the `st*()` hooks (`stBuy`, `stSale`, `stRace`,
+  `stTravel`, `stCtr`, `stAdd`); `stPeak()` runs in `render()`; `stSeasonEnd()` archives a season row before `G.champ` resets. Hooks only record.
+  A new sale path must call `stSale(item, price)` per unit. Device records live in `meta().rec` via `recBeat()` (saved only when beaten).
 - **v5 online** (`NET`, `net*()`): WebRTC data channels, no server. Host and guest swap an invite and a reply code (deflated SDP).
   Star topology: guests talk only to the host, which relays. Turns are sequential like the hot-seat league; only the device that owns
   `G.netSeats[G.cur]` may act (`myTurn()`), and it sends the whole `G` after each render. Receivers keep their own view keys (`tab`, `fcat`, `msort`, `mdesc`).
